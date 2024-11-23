@@ -31,3 +31,11 @@ npm start
 7. Import a Ganache account into MetaMask using the private key
 
 The application should now be running at http://localhost:3000
+
+# Project Structure
+├── contracts/
+│   └── Authentication.sol
+├── migrations/
+│   └── 1_deploy_contracts.js
+├── truffle-config.js
+└── .env
