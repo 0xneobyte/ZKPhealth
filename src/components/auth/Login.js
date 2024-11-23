@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
-import { Button, Container, Paper, Typography, Box } from '@mui/material';
+import { Button, Container, Paper, Typography, Box, Alert, CircularProgress } from '@mui/material';
 import { useAuth } from './AuthContext';
 
 const Login = () => {
     const { login } = useAuth();
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async () => {
+        if (isLoading) return;
         try {
+            setIsLoading(true);
             setError('');
             await login();
         } catch (err) {
-            setError(err.message);
+            console.error('Login error:', err);
+            setError(err.message || 'Failed to connect wallet');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -26,22 +32,24 @@ const Login = () => {
                         Login with MetaMask
                     </Typography>
                     
+                    {error && (
+                        <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
+                            {error}
+                        </Alert>
+                    )}
+                    
                     <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
                         <Button
                             variant="contained"
                             color="primary"
                             onClick={handleLogin}
                             size="large"
+                            disabled={isLoading}
+                            startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null}
                         >
-                            Connect Wallet
+                            {isLoading ? 'Connecting...' : 'Connect Wallet'}
                         </Button>
                     </Box>
-                    
-                    {error && (
-                        <Typography color="error" align="center" sx={{ mt: 2 }}>
-                            {error}
-                        </Typography>
-                    )}
                 </Paper>
             </Box>
         </Container>
