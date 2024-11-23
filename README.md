@@ -5,7 +5,6 @@
 1. Install dependencies: 
 npm install
 
-
 2. Install and start Ganache:
 - Download Ganache from https://trufflesuite.com/ganache/
 - Create a new workspace
