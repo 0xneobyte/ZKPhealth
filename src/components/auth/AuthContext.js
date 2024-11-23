@@ -1,18 +1,36 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { ethers } from 'ethers';
 import { connectWallet, signMessage } from '../../utils/web3';
+import { AUTHENTICATION_ABI } from '../../utils/constants';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [contract, setContract] = useState(null);
 
     useEffect(() => {
+        const initContract = async () => {
+            try {
+                const { provider } = await connectWallet();
+                const contractAddress = process.env.REACT_APP_CONTRACT_ADDRESS;
+                const authContract = new ethers.Contract(
+                    contractAddress,
+                    AUTHENTICATION_ABI,
+                    provider
+                );
+                setContract(authContract);
+            } catch (error) {
+                console.error('Error initializing contract:', error);
+            }
+        };
+
+        initContract();
+        
         // Check if user is already logged in
         const token = localStorage.getItem('auth_token');
         if (token) {
-            // Verify token and set user
-            // This is where you'd typically validate the JWT
             setUser(JSON.parse(localStorage.getItem('user')));
         }
         setLoading(false);
@@ -25,6 +43,15 @@ export const AuthProvider = ({ children }) => {
             // Connect to MetaMask
             const { signer, address } = await connectWallet();
             
+            // Check if user is registered
+            const isRegistered = await contract.isUserRegistered(address);
+            if (!isRegistered) {
+                throw new Error('User not registered. Please contact admin.');
+            }
+
+            // Get user role from contract
+            const role = await contract.getUserRole(address);
+            
             // Create a random nonce for signing
             const nonce = Math.floor(Math.random() * 1000000).toString();
             
@@ -34,14 +61,14 @@ export const AuthProvider = ({ children }) => {
                 signer
             );
             
-            // Here you would typically send the signature, address, and nonce to your backend
-            // The backend would verify the signature and return a JWT
-            // For now, we'll simulate this
+            // Call login function on contract
+            const tx = await contract.connect(signer).login();
+            await tx.wait();
             
             const userData = {
                 address,
-                role: 'doctor', // This would come from your smart contract
-                token: 'dummy_jwt_token' // This would come from your backend
+                role,
+                token: signature // Using signature as token for now
             };
             
             localStorage.setItem('auth_token', userData.token);
