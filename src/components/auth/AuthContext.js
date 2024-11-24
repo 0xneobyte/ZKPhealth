@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { connectWallet, signMessage } from '../../utils/web3';
 import { AUTHENTICATION_ABI } from '../../utils/constants';
+import { authenticator } from 'otplib';
 
 const AuthContext = createContext(null);
 
@@ -52,50 +53,49 @@ export const AuthProvider = ({ children }) => {
             setLoading(true);
             console.log('Starting login process...');
             
-            if (!contract) {
-                throw new Error('Contract not initialized');
-            }
-
+            // First verify user exists in MongoDB
             const { signer, address } = await connectWallet();
-            console.log('Connected wallet address:', address);
+            console.log('Attempting to login with address:', address);
             
-            // Debug contract state
-            console.log('Contract address:', contract.address);
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/auth/users/${address.toLowerCase()}`);
+            console.log('MongoDB response:', response);
             
-            try {
-                const isRegistered = await contract.isUserRegistered(address);
-                console.log('Is user registered:', isRegistered);
-                
-                if (!isRegistered) {
-                    throw new Error('User not registered. Please contact admin.');
-                }
-
-                const role = await contract.getUserRole(address);
-                console.log('User role:', role);
-
-                // Call initiateLogin with explicit signer
-                const signerContract = contract.connect(signer);
-                console.log('Calling initiateLogin...');
-                
-                // Add gas limit to the transaction
-                const tx = await signerContract.initiateLogin({
-                    from: address,
-                    gasLimit: 100000
-                });
-                
-                console.log('InitiateLogin transaction:', tx);
-                const receipt = await tx.wait();
-                console.log('Transaction receipt:', receipt);
-
-                await completeLogin(address, role, signer);
-                
-            } catch (error) {
-                console.error('Error during login process:', error);
-                if (error.code === 'ACTION_REJECTED') {
-                    throw new Error('Transaction was rejected by user');
-                }
-                throw new Error('Login failed. Please try again.');
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('MongoDB error:', errorData);
+                throw new Error(errorData.error || 'User not found in database');
             }
+            
+            const dbUser = await response.json();
+            console.log('Found user in database:', dbUser);
+            
+            // Then check contract
+            const isRegistered = await contract.isUserRegistered(address);
+            if (!isRegistered) {
+                throw new Error('User not registered in contract');
+            }
+
+            // Check if 2FA is enabled
+            const is2FAEnabled = await contract.is2FAEnabled(address);
+            console.log('2FA enabled:', is2FAEnabled);
+
+            const role = await contract.getUserRole(address);
+            console.log('User role:', role);
+
+            // Call initiateLogin with signer
+            const signerContract = contract.connect(signer);
+            const tx = await signerContract.initiateLogin({
+                from: address,
+                gasLimit: 100000
+            });
+            await tx.wait();
+
+            if (is2FAEnabled) {
+                setPending2FA(true);
+            } else {
+                await completeLogin(address, role, signer);
+            }
+            
         } catch (error) {
             console.error('Login error:', error);
             throw error;
@@ -108,16 +108,44 @@ export const AuthProvider = ({ children }) => {
     const verify2FA = async (code) => {
         try {
             setLoading(true);
+            console.log('Starting 2FA verification for code:', code);
             
             const { signer, address } = await connectWallet();
+            console.log('Connected wallet:', address);
+
+            // Get the stored TOTP secret from localStorage
+            const secrets = JSON.parse(localStorage.getItem('totp_secrets') || '{}');
+            const secret = secrets[address.toLowerCase()];
+            console.log('Found stored secret:', !!secret);
+
+            if (!secret) {
+                throw new Error('2FA secret not found. Please set up 2FA again.');
+            }
+
+            // Verify locally using otplib
+            const isValid = authenticator.verify({
+                token: code,
+                secret: secret
+            });
+            console.log('Local verification result:', isValid);
+
+            if (!isValid) {
+                throw new Error('Invalid 2FA code');
+            }
             
-            // Complete 2FA login on contract
-            const tx = await contract.connect(signer).complete2FALogin(code);
+            // Complete login on contract
+            const signerContract = contract.connect(signer);
+            console.log('Completing 2FA login on contract');
+            
+            const tx = await signerContract.complete2FALogin(code, {
+                from: address,
+                gasLimit: 100000
+            });
             await tx.wait();
+            console.log('Contract 2FA login completed');
 
             const role = await contract.getUserRole(address);
-            
-            completeLogin(address, role, signer);
+            await completeLogin(address, role, signer);
             setPending2FA(false);
             
         } catch (error) {
@@ -129,21 +157,42 @@ export const AuthProvider = ({ children }) => {
     };
 
     const completeLogin = async (address, role, signer) => {
-        const nonce = Math.floor(Math.random() * 1000000).toString();
-        const signature = await signMessage(
-            `Login to Healthcare ZKP System\nNonce: ${nonce}`,
-            signer
-        );
-        
-        const userData = {
-            address,
-            role,
-            token: signature
-        };
-        
-        localStorage.setItem('auth_token', userData.token);
-        localStorage.setItem('user', JSON.stringify(userData));
-        setUser(userData);
+        try {
+            const nonce = Math.floor(Math.random() * 1000000).toString();
+            const signature = await signMessage(
+                `Login to Healthcare ZKP System\nNonce: ${nonce}`,
+                signer
+            );
+            
+            const userData = {
+                address,
+                role,
+                token: signature
+            };
+
+            // Don't update is2FAEnabled status, just update role if needed
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/auth/users/${address}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    role: role
+                })
+            });
+
+            if (!response.ok) {
+                console.error('Failed to update MongoDB record');
+            } else {
+                console.log('MongoDB record updated');
+            }
+            
+            localStorage.setItem('auth_token', userData.token);
+            localStorage.setItem('user', JSON.stringify(userData));
+            setUser(userData);
+        } catch (error) {
+            console.error('Error in completeLogin:', error);
+        }
     };
 
     const logout = () => {
@@ -159,7 +208,8 @@ export const AuthProvider = ({ children }) => {
             logout, 
             loading,
             pending2FA,
-            verify2FA 
+            verify2FA,
+            contract 
         }}>
             {children}
         </AuthContext.Provider>

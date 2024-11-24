@@ -18,9 +18,11 @@ const TwoFactorAuth = ({ onVerify, onCancel }) => {
             if (code.length !== 6) {
                 throw new Error('Code must be 6 digits');
             }
+            setError('');
             await onVerify(code);
         } catch (err) {
-            setError(err.message);
+            console.error('2FA submission error:', err);
+            setError(err.message || 'Verification failed');
         }
     };
 
@@ -32,18 +34,22 @@ const TwoFactorAuth = ({ onVerify, onCancel }) => {
                         Two-Factor Authentication
                     </Typography>
                     <Typography variant="body1" align="center" gutterBottom>
-                        Please enter the 6-digit code
+                        Enter the 6-digit code from your authenticator app
                     </Typography>
                     <form onSubmit={handleSubmit}>
                         <TextField
                             fullWidth
-                            label="Verification Code"
+                            label="Authentication Code"
                             value={code}
                             onChange={(e) => setCode(e.target.value)}
                             margin="normal"
                             type="number"
                             error={!!error}
                             helperText={error}
+                            inputProps={{
+                                maxLength: 6,
+                                pattern: '[0-9]*'
+                            }}
                         />
                         <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
                             <Button onClick={onCancel} variant="outlined">

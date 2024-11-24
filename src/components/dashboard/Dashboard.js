@@ -1,9 +1,72 @@
-import React from 'react';
-import { Box, Typography, Button } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions, Alert } from '@mui/material';
 import { useAuth } from '../auth/AuthContext';
+import { ethers } from 'ethers';
+import QRCode from 'qrcode.react';
+import { generateSecret, getQRCodeUrl, generateBackupCode } from '../../utils/totp';
+import { connectWallet } from '../../utils/web3';
+import { storeTOTPSecret } from '../../services/auth.service';
 
 const Dashboard = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, contract } = useAuth();
+    const [open2FADialog, setOpen2FADialog] = useState(false);
+    const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+    const [qrUrl, setQrUrl] = useState('');
+    const [error, setError] = useState('');
+    const [backupCode, setBackupCode] = useState('');
+
+    useEffect(() => {
+        const check2FAStatus = async () => {
+            try {
+                if (contract && user) {
+                    const enabled = await contract.is2FAEnabled(user.address);
+                    setIs2FAEnabled(enabled);
+                }
+            } catch (err) {
+                console.error('Error checking 2FA status:', err);
+            }
+        };
+        check2FAStatus();
+    }, [contract, user]);
+
+    const handle2FASetup = async () => {
+        try {
+            setError('');
+            if (!contract) {
+                throw new Error('Contract not initialized');
+            }
+
+            const { signer, address } = await connectWallet();
+            const connectedContract = contract.connect(signer);
+
+            // Generate TOTP secret and backup code
+            const totpSecret = generateSecret();
+            const backup = generateBackupCode();
+            setBackupCode(backup);
+            
+            const url = getQRCodeUrl(totpSecret, address);
+            setQrUrl(url);
+            
+            const hashedSecret = ethers.utils.keccak256(
+                ethers.utils.toUtf8Bytes(totpSecret)
+            );
+            
+            // Store both secret and backup code
+            await storeTOTPSecret(address, totpSecret, backup);
+            
+            const tx = await connectedContract.enable2FA(hashedSecret, {
+                from: address,
+                gasLimit: 100000
+            });
+            await tx.wait();
+            
+            setIs2FAEnabled(true);
+            setOpen2FADialog(true);
+        } catch (error) {
+            console.error('Error setting up 2FA:', error);
+            setError(error.message || 'Failed to set up 2FA');
+        }
+    };
 
     return (
         <Box sx={{ p: 3 }}>
@@ -16,14 +79,66 @@ const Dashboard = () => {
             <Typography variant="body1" gutterBottom>
                 Role: {user?.role}
             </Typography>
-            <Button 
-                variant="contained" 
-                color="secondary" 
-                onClick={logout}
-                sx={{ mt: 2 }}
+            
+            {error && (
+                <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
+                    {error}
+                </Alert>
+            )}
+            
+            <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
+                <Button 
+                    variant="contained" 
+                    color="primary" 
+                    onClick={handle2FASetup}
+                    disabled={is2FAEnabled}
+                >
+                    {is2FAEnabled ? '2FA Enabled' : 'Enable 2FA'}
+                </Button>
+                
+                <Button 
+                    variant="contained" 
+                    color="secondary" 
+                    onClick={logout}
+                >
+                    Logout
+                </Button>
+            </Box>
+
+            <Dialog 
+                open={open2FADialog} 
+                onClose={() => setOpen2FADialog(false)}
+                maxWidth="sm"
+                fullWidth
             >
-                Logout
-            </Button>
+                <DialogTitle>Set Up Two-Factor Authentication</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ textAlign: 'center', py: 2 }}>
+                        <Typography gutterBottom>
+                            1. Install Google Authenticator or any TOTP-compatible app
+                        </Typography>
+                        <Typography gutterBottom>
+                            2. Scan this QR code with your authenticator app
+                        </Typography>
+                        
+                        {qrUrl && (
+                            <Box sx={{ my: 3 }}>
+                                <QRCode value={qrUrl} size={256} />
+                            </Box>
+                        )}
+                        
+                        <Alert severity="warning" sx={{ mt: 2 }}>
+                            Important: Save your backup code: {backupCode}
+                        </Alert>
+                        <Typography variant="caption">
+                            Store this backup code securely. You'll need it if you lose access to your authenticator app.
+                        </Typography>
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpen2FADialog(false)}>Close</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };

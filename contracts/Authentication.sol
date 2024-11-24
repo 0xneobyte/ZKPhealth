@@ -8,35 +8,88 @@ contract Authentication {
         uint256 lastLogin;
         bool is2FAEnabled;
         bytes32 twoFactorSecret;
+        uint256 lastTOTPTimestamp;
     }
     
     mapping(address => User) public users;
     mapping(address => bool) public pendingTwoFactorAuth;
+    address public owner;
     
     event UserRegistered(address indexed userAddress, string role);
     event UserLoggedIn(address indexed userAddress, uint256 timestamp);
     event TwoFactorEnabled(address indexed userAddress);
     
-    function registerUser(address _userAddress, string memory _role) public {
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can call this");
+        _;
+    }
+    
+    modifier onlyAdminOrDoctor() {
+        require(
+            users[msg.sender].isRegistered && 
+            (keccak256(bytes(users[msg.sender].role)) == keccak256(bytes("admin")) ||
+             keccak256(bytes(users[msg.sender].role)) == keccak256(bytes("doctor"))),
+            "Only admin or doctor can call this"
+        );
+        _;
+    }
+    
+    constructor() {
+        owner = msg.sender;
+        // Register owner as admin
+        users[msg.sender] = User({
+            isRegistered: true,
+            role: "admin",
+            lastLogin: 0,
+            is2FAEnabled: false,
+            twoFactorSecret: bytes32(0),
+            lastTOTPTimestamp: 0
+        });
+    }
+    
+    // Only admin/doctor can register new users
+    function registerUser(address _userAddress, string memory _role) public onlyAdminOrDoctor {
         require(!users[_userAddress].isRegistered, "User already registered");
+        require(
+            keccak256(bytes(_role)) == keccak256(bytes("patient")) ||
+            keccak256(bytes(_role)) == keccak256(bytes("doctor")),
+            "Invalid role"
+        );
         
         users[_userAddress] = User({
             isRegistered: true,
             role: _role,
             lastLogin: 0,
             is2FAEnabled: false,
-            twoFactorSecret: bytes32(0)
+            twoFactorSecret: bytes32(0),
+            lastTOTPTimestamp: 0
         });
         
         emit UserRegistered(_userAddress, _role);
     }
     
-    function enable2FA(bytes32 _secret) public {
+    // Only owner can register doctors/admins
+    function registerDoctor(address _doctorAddress) public onlyOwner {
+        require(!users[_doctorAddress].isRegistered, "User already registered");
+        
+        users[_doctorAddress] = User({
+            isRegistered: true,
+            role: "doctor",
+            lastLogin: 0,
+            is2FAEnabled: false,
+            twoFactorSecret: bytes32(0),
+            lastTOTPTimestamp: 0
+        });
+        
+        emit UserRegistered(_doctorAddress, "doctor");
+    }
+    
+    function enable2FA(bytes32 _hashedSecret) public {
         require(users[msg.sender].isRegistered, "User not registered");
         require(!users[msg.sender].is2FAEnabled, "2FA already enabled");
         
         users[msg.sender].is2FAEnabled = true;
-        users[msg.sender].twoFactorSecret = _secret;
+        users[msg.sender].twoFactorSecret = _hashedSecret;
         
         emit TwoFactorEnabled(msg.sender);
     }
@@ -55,10 +108,13 @@ contract Authentication {
         require(pendingTwoFactorAuth[msg.sender], "No pending 2FA login");
         require(users[msg.sender].is2FAEnabled, "2FA not enabled");
         
-        // In a real implementation, we would verify the code here
-        // For this demo, we'll accept any non-empty code
-        require(bytes(_code).length > 0, "Invalid 2FA code");
+        bytes32 storedSecret = users[msg.sender].twoFactorSecret;
         
+        require(bytes(_code).length == 6, "Invalid code length");
+        
+        require(block.timestamp > users[msg.sender].lastTOTPTimestamp + 30, "Code already used");
+        
+        users[msg.sender].lastTOTPTimestamp = block.timestamp;
         pendingTwoFactorAuth[msg.sender] = false;
         users[msg.sender].lastLogin = block.timestamp;
         emit UserLoggedIn(msg.sender, block.timestamp);
@@ -75,5 +131,14 @@ contract Authentication {
     
     function is2FAEnabled(address _userAddress) public view returns (bool) {
         return users[_userAddress].is2FAEnabled;
+    }
+    
+    function disable2FA() public {
+        require(users[msg.sender].isRegistered, "User not registered");
+        require(users[msg.sender].is2FAEnabled, "2FA not enabled");
+        
+        users[msg.sender].is2FAEnabled = false;
+        users[msg.sender].twoFactorSecret = bytes32(0);
+        users[msg.sender].lastTOTPTimestamp = 0;
     }
 } 

@@ -159,5 +159,12 @@ export const AUTHENTICATION_ABI = [
         ],
         "stateMutability": "view",
         "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "disable2FA",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
     }
 ]; 

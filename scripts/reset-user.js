@@ -28,56 +28,33 @@ async function resetUser() {
         
         console.log('New contract deployed at:', newContract.options.address);
 
-        // Clear old MongoDB record
+        // Clear MongoDB record
         try {
-            console.log('Clearing old MongoDB record...');
-            await fetch(`http://localhost:3001/auth/users/${userAddress}`, {
+            console.log('Clearing MongoDB record...');
+            const response = await fetch(`http://localhost:3001/auth/users/${userAddress}`, {
                 method: 'DELETE'
             });
-            console.log('Old MongoDB record cleared');
+            if (response.ok) {
+                console.log('MongoDB record cleared');
+            }
         } catch (error) {
-            console.log('No old MongoDB record to clear');
+            console.log('No MongoDB record to clear');
         }
 
-        // Register user in contract
-        console.log('Registering user in contract...');
+        // Register user
+        console.log('Registering user in new contract...');
         await newContract.methods.registerUser(userAddress, "doctor").send({ 
             from: userAddress,
             gas: 200000
         });
-
-        // Create MongoDB record
-        try {
-            console.log('Creating MongoDB record...');
-            const response = await fetch('http://localhost:3001/auth/users', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    walletAddress: userAddress,
-                    role: 'doctor',
-                    is2FAEnabled: false
-                })
-            });
-            
-            if (response.ok) {
-                console.log('MongoDB record created successfully');
-            } else {
-                throw new Error('Failed to create MongoDB record');
-            }
-        } catch (error) {
-            console.error('Error creating MongoDB record:', error);
-            throw error;
-        }
         
-        // Verify final state
+        // Verify registration
         const isRegistered = await newContract.methods.isUserRegistered(userAddress).call();
         const role = await newContract.methods.getUserRole(userAddress).call();
         const is2FAEnabled = await newContract.methods.is2FAEnabled(userAddress).call();
         
         console.log('\nFinal state:');
-        console.log('- Contract Registration:', isRegistered);
+        console.log('- Registered:', isRegistered);
         console.log('- Role:', role);
         console.log('- 2FA Enabled:', is2FAEnabled);
         
