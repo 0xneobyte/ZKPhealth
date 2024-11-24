@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, Tabs, Tab, Dialog, DialogTitle, DialogContent, DialogActions, Alert } from '@mui/material';
 import { useAuth } from '../auth/AuthContext';
 import PatientForm from '../patients/PatientForm';
+import PatientSearch from '../patients/PatientSearch';  // Add this import
 import { connectWallet } from '../../utils/web3';
 import { generateSecret, getQRCodeUrl, generateBackupCode } from '../../utils/totp';
 import { storeTOTPSecret } from '../../services/auth.service';
@@ -100,6 +101,7 @@ const Dashboard = () => {
                     <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 3 }}>
                         <Tab label="Profile" />
                         <Tab label="Register Patient" />
+                        <Tab label="Search Patient" />
                     </Tabs>
 
                     {tabValue === 0 ? (
@@ -120,8 +122,10 @@ const Dashboard = () => {
                                 {is2FAEnabled ? '2FA Enabled' : 'Enable 2FA'}
                             </Button>
                         </Box>
-                    ) : (
+                    ) : tabValue === 1 ? (
                         <PatientForm />
+                    ) : (
+                        <PatientSearch />
                     )}
                 </>
             ) : (
@@ -168,4 +172,4 @@ const Dashboard = () => {
     );
 };
 
-export default Dashboard; 
+export default Dashboard;

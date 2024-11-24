@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Paper,
@@ -28,6 +28,25 @@ const PatientForm = () => {
         disease: ''
     });
 
+    const fetchPatientId = async () => {
+        try {
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/patients/generate-id`);
+            if (!response.ok) throw new Error('Failed to generate patient ID');
+            const data = await response.json();
+            setFormData(prev => ({
+                ...prev,
+                patientId: data.patientId
+            }));
+        } catch (error) {
+            console.error('Error fetching patient ID:', error);
+            setError('Failed to generate patient ID');
+        }
+    };
+
+    useEffect(() => {
+        fetchPatientId();
+    }, []);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
@@ -39,7 +58,9 @@ const PatientForm = () => {
 
             // First store in blockchain
             console.log('Storing patient record in blockchain...');
-            const tx = await connectedContract.registerPatientRecord(
+            
+            // Estimate gas for the transaction
+            const gasEstimate = await connectedContract.estimateGas.registerPatientRecord(
                 formData.patientId,
                 formData.patientName,
                 parseInt(formData.age),
@@ -47,11 +68,30 @@ const PatientForm = () => {
                 formData.clinicalDescription,
                 formData.disease
             );
-            await tx.wait();
-            console.log('Patient record stored in blockchain');
+
+            // Add 20% buffer to gas estimate
+            const gasLimit = Math.ceil(gasEstimate.toNumber() * 1.2);
+
+            const tx = await connectedContract.registerPatientRecord(
+                formData.patientId,
+                formData.patientName,
+                parseInt(formData.age),
+                formData.gender,
+                formData.clinicalDescription,
+                formData.disease,
+                { gasLimit }
+            );
+
+            console.log('Transaction sent:', tx.hash);
+            const receipt = await tx.wait();
+            console.log('Transaction confirmed:', receipt);
 
             // Then store in MongoDB
-            console.log('Storing patient record in MongoDB...');
+            console.log('Sending data to MongoDB:', {
+                ...formData,
+                doctorAddress: user.address
+            });
+            
             const response = await fetch(`${process.env.REACT_APP_API_URL}/patients`, {
                 method: 'POST',
                 headers: {
@@ -69,20 +109,25 @@ const PatientForm = () => {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to store in database');
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to store in database');
             }
 
             setSuccess('Patient registered successfully!');
+            
+            // Reset form and get new patient ID
             setFormData({
-                patientId: '',
+                patientId: '', // This will be updated by fetchPatientId
                 patientName: '',
                 age: '',
                 gender: '',
                 clinicalDescription: '',
                 disease: ''
             });
+            await fetchPatientId(); // Fetch new patient ID after successful registration
+            
         } catch (err) {
-            console.error('Error registering patient:', err);
+            console.error('Detailed error:', err);
             setError(err.message || 'Failed to register patient');
         }
     };
@@ -122,8 +167,8 @@ const PatientForm = () => {
                                 label="Patient ID"
                                 name="patientId"
                                 value={formData.patientId}
-                                onChange={handleChange}
-                                required
+                                disabled
+                                sx={{ mb: 2 }}
                             />
                         </Grid>
                         <Grid item xs={12} sm={6}>
@@ -201,4 +246,4 @@ const PatientForm = () => {
     );
 };
 
-export default PatientForm; 
+export default PatientForm;

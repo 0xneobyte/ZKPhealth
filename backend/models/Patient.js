@@ -11,13 +11,13 @@ const patientSchema = new mongoose.Schema({
         required: true
     },
     age: {
-        type: Number,
+        type: String,  // For encrypted data
         required: true
     },
     gender: {
         type: String,
-        required: true,
-        enum: ['male', 'female', 'other']
+        required: true
+        // Removed enum validation since we're storing encrypted values
     },
     clinicalDescription: {
         type: String,
@@ -37,4 +37,4 @@ const patientSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('Patient', patientSchema); 
+module.exports = mongoose.model('Patient', patientSchema);
