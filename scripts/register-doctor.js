@@ -1,6 +1,5 @@
 const Web3 = require('web3');
 const Authentication = require('../build/contracts/Authentication.json');
-require('dotenv').config();
 
 async function registerDoctor() {
     try {
@@ -8,52 +7,35 @@ async function registerDoctor() {
         const accounts = await web3.eth.getAccounts();
         
         const admin = accounts[0];  // Contract owner/admin
-        const doctorAddress = accounts[1];  // Doctor to be registered
+        const doctorAddress = '0x91B8B2b45C9Fd04b165ff7a4523328394E1c60E6';  // Your doctor address
         
         console.log('Admin address:', admin);
         console.log('Doctor address:', doctorAddress);
         
-        const contractAddress = process.env.REACT_APP_CONTRACT_ADDRESS;
+        const contractAddress = '0xA222CB99c519C02a097753622B02A237CB983a59';  // Updated contract address
         console.log('Contract address:', contractAddress);
-        
-        if (!contractAddress) {
-            throw new Error('Contract address not found in .env');
-        }
         
         const contract = new web3.eth.Contract(
             Authentication.abi,
             contractAddress
         );
         
-        console.log('Registering doctor...');
-        const tx = await contract.methods.registerDoctor(doctorAddress).send({
-            from: admin,
-            gas: 200000
-        });
+        // First check if doctor is already registered
+        const isRegistered = await contract.methods.isUserRegistered(doctorAddress).call();
+        console.log('Is doctor registered:', isRegistered);
         
-        console.log('Doctor registration transaction:', tx);
-        console.log('Doctor registered successfully');
-        
-        try {
-            const response = await fetch('http://localhost:3001/auth/users', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    walletAddress: doctorAddress,
-                    role: 'doctor',
-                    is2FAEnabled: false
-                })
+        if (!isRegistered) {
+            console.log('Registering doctor...');
+            const tx = await contract.methods.registerDoctor(doctorAddress).send({
+                from: admin,
+                gas: 200000
             });
-            
-            if (response.ok) {
-                console.log('MongoDB record created for doctor');
-            } else {
-                console.error('Failed to create MongoDB record');
-            }
-        } catch (error) {
-            console.error('Error creating MongoDB record:', error);
+            console.log('Doctor registration transaction:', tx);
+            console.log('Doctor registered successfully');
+        } else {
+            console.log('Doctor already registered');
+            const role = await contract.methods.getUserRole(doctorAddress).call();
+            console.log('Doctor role:', role);
         }
         
     } catch (error) {

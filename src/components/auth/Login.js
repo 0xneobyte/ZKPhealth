@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Button, Container, Paper, Typography, Box, Alert, CircularProgress } from '@mui/material';
 import { useAuth } from './AuthContext';
+import { Box, Button, Typography, Paper, Alert, CircularProgress } from '@mui/material';
 
 const Login = () => {
     const { login } = useAuth();
@@ -22,37 +22,66 @@ const Login = () => {
     };
 
     return (
-        <Container maxWidth="sm">
-            <Box sx={{ mt: 8 }}>
-                <Paper sx={{ p: 4 }}>
-                    <Typography variant="h4" align="center" gutterBottom>
-                        Healthcare ZKP System
-                    </Typography>
-                    <Typography variant="h6" align="center" gutterBottom>
-                        Login with MetaMask
-                    </Typography>
-                    
-                    {error && (
-                        <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
-                            {error}
-                        </Alert>
+        <Box 
+            sx={{ 
+                minHeight: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: 'grey.50'
+            }}
+        >
+            <Paper 
+                elevation={3}
+                sx={{ 
+                    p: 4, 
+                    maxWidth: 400, 
+                    width: '100%',
+                    textAlign: 'center'
+                }}
+            >
+                <Typography variant="h4" gutterBottom>
+                    Healthcare ZKP System
+                </Typography>
+                
+                <Typography variant="subtitle1" color="textSecondary" sx={{ mb: 4 }}>
+                    Login with MetaMask
+                </Typography>
+
+                {error && (
+                    <Alert severity="error" sx={{ mb: 3 }}>
+                        {error}
+                    </Alert>
+                )}
+
+                <Button
+                    variant="contained"
+                    fullWidth
+                    size="large"
+                    onClick={handleLogin}
+                    disabled={isLoading}
+                    sx={{ 
+                        height: 48,
+                        position: 'relative'
+                    }}
+                >
+                    {isLoading ? (
+                        <>
+                            <CircularProgress 
+                                size={24} 
+                                sx={{ 
+                                    position: 'absolute',
+                                    left: 20
+                                }}
+                            />
+                            Connecting...
+                        </>
+                    ) : (
+                        'Connect with MetaMask'
                     )}
-                    
-                    <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={handleLogin}
-                            size="large"
-                            disabled={isLoading}
-                            startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null}
-                        >
-                            {isLoading ? 'Connecting...' : 'Connect Wallet'}
-                        </Button>
-                    </Box>
-                </Paper>
-            </Box>
-        </Container>
+                </Button>
+            </Paper>
+        </Box>
     );
 };
 

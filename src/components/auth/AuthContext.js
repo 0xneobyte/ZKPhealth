@@ -53,42 +53,33 @@ export const AuthProvider = ({ children }) => {
             setLoading(true);
             console.log('Starting login process...');
             
-            // First verify user exists in MongoDB
+            // First connect wallet and get signer
             const { signer, address } = await connectWallet();
-            console.log('Attempting to login with address:', address);
+            console.log('Connected wallet:', address);
             
-            const response = await fetch(`${process.env.REACT_APP_API_URL}/auth/users/${address.toLowerCase()}`);
-            console.log('MongoDB response:', response);
+            // Connect contract with signer
+            const connectedContract = contract.connect(signer);
             
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('MongoDB error:', errorData);
-                throw new Error(errorData.error || 'User not found in database');
-            }
+            // Check contract first
+            const isRegistered = await connectedContract.isUserRegistered(address);
+            console.log('Is registered:', isRegistered);
             
-            const dbUser = await response.json();
-            console.log('Found user in database:', dbUser);
-            
-            // Then check contract
-            const isRegistered = await contract.isUserRegistered(address);
             if (!isRegistered) {
-                throw new Error('User not registered in contract');
+                throw new Error('User not registered. Please contact admin.');
             }
 
-            // Check if 2FA is enabled
-            const is2FAEnabled = await contract.is2FAEnabled(address);
-            console.log('2FA enabled:', is2FAEnabled);
-
-            const role = await contract.getUserRole(address);
+            const role = await connectedContract.getUserRole(address);
             console.log('User role:', role);
 
-            // Call initiateLogin with signer
-            const signerContract = contract.connect(signer);
-            const tx = await signerContract.initiateLogin({
-                from: address,
-                gasLimit: 100000
-            });
+            // Call initiateLogin
+            console.log('Initiating login...');
+            const tx = await connectedContract.initiateLogin();
             await tx.wait();
+            console.log('Login initiated');
+
+            // Check 2FA status
+            const is2FAEnabled = await connectedContract.is2FAEnabled(address);
+            console.log('2FA enabled:', is2FAEnabled);
 
             if (is2FAEnabled) {
                 setPending2FA(true);

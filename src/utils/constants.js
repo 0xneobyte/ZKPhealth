@@ -166,5 +166,74 @@ export const AUTHENTICATION_ABI = [
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_patientId",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_patientName",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_age",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "_gender",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_clinicalDescription",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_disease",
+                "type": "string"
+            }
+        ],
+        "name": "registerPatientRecord",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "patientAddress",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "string",
+                "name": "patientId",
+                "type": "string"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "doctorAddress",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "timestamp",
+                "type": "uint256"
+            }
+        ],
+        "name": "PatientRecordCreated",
+        "type": "event"
     }
 ]; 

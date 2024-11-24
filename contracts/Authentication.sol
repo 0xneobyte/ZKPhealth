@@ -18,6 +18,12 @@ contract Authentication {
     event UserRegistered(address indexed userAddress, string role);
     event UserLoggedIn(address indexed userAddress, uint256 timestamp);
     event TwoFactorEnabled(address indexed userAddress);
+    event PatientRecordCreated(
+        address indexed patientAddress,
+        string patientId,
+        address indexed doctorAddress,
+        uint256 timestamp
+    );
     
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this");
@@ -108,10 +114,7 @@ contract Authentication {
         require(pendingTwoFactorAuth[msg.sender], "No pending 2FA login");
         require(users[msg.sender].is2FAEnabled, "2FA not enabled");
         
-        bytes32 storedSecret = users[msg.sender].twoFactorSecret;
-        
         require(bytes(_code).length == 6, "Invalid code length");
-        
         require(block.timestamp > users[msg.sender].lastTOTPTimestamp + 30, "Code already used");
         
         users[msg.sender].lastTOTPTimestamp = block.timestamp;
@@ -140,5 +143,52 @@ contract Authentication {
         users[msg.sender].is2FAEnabled = false;
         users[msg.sender].twoFactorSecret = bytes32(0);
         users[msg.sender].lastTOTPTimestamp = 0;
+    }
+    
+    struct PatientRecord {
+        string patientId;
+        string patientName;
+        uint256 age;
+        string gender;
+        string clinicalDescription;
+        string disease;
+        uint256 timestamp;
+        address doctorAddress;
+        bool isActive;
+    }
+    
+    mapping(address => PatientRecord) public patientRecords;
+    mapping(address => address[]) public doctorPatients;  // doctor -> their patients
+    
+    function registerPatientRecord(
+        string memory _patientId,
+        string memory _patientName,
+        uint256 _age,
+        string memory _gender,
+        string memory _clinicalDescription,
+        string memory _disease
+    ) public {
+        require(
+            keccak256(bytes(users[msg.sender].role)) == keccak256(bytes("doctor")) ||
+            keccak256(bytes(users[msg.sender].role)) == keccak256(bytes("admin")),
+            "Only doctors or admins can register patients"
+        );
+
+        PatientRecord memory newRecord = PatientRecord({
+            patientId: _patientId,
+            patientName: _patientName,
+            age: _age,
+            gender: _gender,
+            clinicalDescription: _clinicalDescription,
+            disease: _disease,
+            timestamp: block.timestamp,
+            doctorAddress: msg.sender,
+            isActive: true
+        });
+
+        patientRecords[msg.sender] = newRecord;
+        doctorPatients[msg.sender].push(msg.sender);
+
+        emit PatientRecordCreated(msg.sender, _patientId, msg.sender, block.timestamp);
     }
 } 

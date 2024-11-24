@@ -1,5 +1,4 @@
 import { authenticator } from 'otplib';
-import { Buffer } from 'buffer';
 
 // Configure TOTP settings
 authenticator.options = {
@@ -29,7 +28,11 @@ export const getQRCodeUrl = (secret, email) => {
 };
 
 export const generateBackupCode = () => {
-    // Generate a random 16-character backup code
-    const bytes = Buffer.from(crypto.getRandomValues(new Uint8Array(8)));
-    return bytes.toString('hex').toUpperCase();
+    const length = 16;
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
 }; 

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const authRoutes = require('./routes/auth');
+const patientRoutes = require('./routes/patients');
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ mongoose.connection.once('open', () => {
 
 // Routes with logging
 app.use('/auth', authRoutes);
+app.use('/patients', patientRoutes);
 
 // Add a test route
 app.get('/test', (req, res) => {

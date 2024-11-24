@@ -1,19 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions, Alert } from '@mui/material';
+import { Box, Typography, Button, Tabs, Tab, Dialog, DialogTitle, DialogContent, DialogActions, Alert } from '@mui/material';
 import { useAuth } from '../auth/AuthContext';
+import PatientForm from '../patients/PatientForm';
+import { connectWallet } from '../../utils/web3';
+import { generateSecret, getQRCodeUrl, generateBackupCode } from '../../utils/totp';
+import { storeTOTPSecret } from '../../services/auth.service';
 import { ethers } from 'ethers';
 import QRCode from 'qrcode.react';
-import { generateSecret, getQRCodeUrl, generateBackupCode } from '../../utils/totp';
-import { connectWallet } from '../../utils/web3';
-import { storeTOTPSecret } from '../../services/auth.service';
 
 const Dashboard = () => {
     const { user, logout, contract } = useAuth();
-    const [open2FADialog, setOpen2FADialog] = useState(false);
+    const [tabValue, setTabValue] = useState(0);
     const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+    const [open2FADialog, setOpen2FADialog] = useState(false);
     const [qrUrl, setQrUrl] = useState('');
     const [error, setError] = useState('');
     const [backupCode, setBackupCode] = useState('');
+
+    const handleTabChange = (event, newValue) => {
+        setTabValue(newValue);
+    };
 
     useEffect(() => {
         const check2FAStatus = async () => {
@@ -70,32 +76,16 @@ const Dashboard = () => {
 
     return (
         <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>
-                Welcome, Doctor
-            </Typography>
-            <Typography variant="body1" gutterBottom>
-                Address: {user?.address}
-            </Typography>
-            <Typography variant="body1" gutterBottom>
-                Role: {user?.role}
-            </Typography>
-            
             {error && (
-                <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
+                <Alert severity="error" sx={{ mb: 2 }}>
                     {error}
                 </Alert>
             )}
             
-            <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
-                <Button 
-                    variant="contained" 
-                    color="primary" 
-                    onClick={handle2FASetup}
-                    disabled={is2FAEnabled}
-                >
-                    {is2FAEnabled ? '2FA Enabled' : 'Enable 2FA'}
-                </Button>
-                
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+                <Typography variant="h4">
+                    Welcome, {user?.role === 'doctor' ? 'Doctor' : 'Patient'}
+                </Typography>
                 <Button 
                     variant="contained" 
                     color="secondary" 
@@ -104,6 +94,41 @@ const Dashboard = () => {
                     Logout
                 </Button>
             </Box>
+
+            {user?.role === 'doctor' ? (
+                <>
+                    <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 3 }}>
+                        <Tab label="Profile" />
+                        <Tab label="Register Patient" />
+                    </Tabs>
+
+                    {tabValue === 0 ? (
+                        <Box>
+                            <Typography variant="body1" gutterBottom>
+                                Address: {user?.address}
+                            </Typography>
+                            <Typography variant="body1" gutterBottom>
+                                Role: {user?.role}
+                            </Typography>
+                            <Button 
+                                variant="contained" 
+                                color="primary" 
+                                onClick={handle2FASetup}
+                                disabled={is2FAEnabled}
+                                sx={{ mt: 2 }}
+                            >
+                                {is2FAEnabled ? '2FA Enabled' : 'Enable 2FA'}
+                            </Button>
+                        </Box>
+                    ) : (
+                        <PatientForm />
+                    )}
+                </>
+            ) : (
+                <Typography>
+                    Access Denied. Only doctors can access this page.
+                </Typography>
+            )}
 
             <Dialog 
                 open={open2FADialog} 

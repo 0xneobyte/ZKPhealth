@@ -14,13 +14,7 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    totpSecret: {
-        type: String,
-        select: false  // Hide by default for security
-    },
-    lastTOTPTimestamp: {
-        type: Date
-    },
+    totpSecret: String,
     backupCode: String  // Add this field
 });
 
