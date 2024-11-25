@@ -4,6 +4,8 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const authRoutes = require('./routes/auth');
 const patientRoutes = require('./routes/patients');
+const twoFactorRoutes = require('./routes/twoFactor');
+const errorHandler = require('./middleware/errorHandler');
 
 dotenv.config();
 
@@ -24,6 +26,7 @@ mongoose.connect(process.env.MONGODB_URI)
 // Routes with logging
 app.use('/auth', authRoutes);
 app.use('/patients', patientRoutes);
+app.use('/2fa', twoFactorRoutes);
 
 // Add a test route
 app.get('/test', (req, res) => {
@@ -31,10 +34,7 @@ app.get('/test', (req, res) => {
 });
 
 // Error handling
-app.use((err, req, res, next) => {
-    console.error('Error:', err.stack);
-    res.status(500).json({ error: 'Something went wrong!' });
-});
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

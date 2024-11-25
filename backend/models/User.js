@@ -15,7 +15,9 @@ const userSchema = new mongoose.Schema({
     is2FAEnabled: {
         type: Boolean,
         default: false
-    }
+    },
+    twoFactorSecret: String,
+    tempSecret: String
 });
 
 module.exports = mongoose.model('User', userSchema); 
