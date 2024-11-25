@@ -1,146 +1,116 @@
-# Healthcare ZKP System
+# Healthcare Blockchain System, Privacy Preserving Solution
+This document details a healthcare system leveraging Zero-Knowledge Proofs (ZKPs) to securely verify blood pressure readings while maintaining patient privacy.
 
-A privacy-preserving healthcare system using Zero-Knowledge Proofs (ZKP) for secure blood pressure verification.
+## Key Features
 
-## Features
-- Role-based authentication (Admin/Doctor/Insurance Provider)
-- ZKP implementation for blood pressure range verification
-- Privacy-preserving insurance claim system
-- Admin dashboard for user management
-- Doctor dashboard for patient registration and claims
-- Insurance dashboard for claim verification
+* **Role-Based Access Control:**  Strict access control for Administrators, Doctors, and Insurance Providers.
+* **Secure Blood Pressure Verification:**  ZKP implementation ensures only the validity of blood pressure readings (within a specified range) is revealed, not the actual values.
+* **Privacy-Preserving Claims System:**  Insurance claims are processed while protecting sensitive patient data.
+* **Intuitive Dashboards:**  Dedicated dashboards for Admins (user management), Doctors (patient registration and claim submission), and Insurance Providers (claim verification).
 
-## Prerequisites
-- Node.js (v14+ recommended)
-- MongoDB (v4.4+ recommended)
-- Ganache (for local blockchain)
-- MetaMask browser extension
-- Git
-- Circom (for ZKP circuit compilation)
+## System Requirements
 
-## Installation & Setup
-
-1. **Clone and Install Dependencies**
-
-### Install root project dependencies
-- npm install
-
-### Install backend dependencies
-- cd backend
-- npm install
-
-### Install frontend dependencies
-- cd frontend
-- npm install  
-
-### Install Circom globally
-- npm install -g circom
-
-### ZKP Circuit Setup
-- cd circuits
-- circom bloodPressureRange.circom --r1cs --wasm --sym
-
-### Setup Script
-- cd backend
-- node scripts/setup-complete.js
-
-This will:
-- Compile the ZKP circuit
-- Generate proving/verification keys
-- Set up the ZKP system
-
-4. **Start Ganache**:
-- Download and install Ganache
-- Create new workspace
-- Keep Ganache running
-
-5. **Run the Setup Script**
-- node scripts/setup-roles.js
-- Copy the displayed contract address
-- Update .env with the new contract address
-- Note down the account addresses and their roles
-
-6. **Configure MetaMask**:
-- Add Ganache network to MetaMask:
-  - Network Name: Ganache
-  - RPC URL: http://127.0.0.1:7545
-  - Chain ID: 1337
-  - Currency: ETH
-
-- Import accounts from Ganache in order:
-  1. First account = Admin
-  2. Second account = Doctor
-  3. Third account = Insurance Provider
-
-7. **Start the Application**:
-- Start mongodb
-- cd backend/node server.js
-- npm start on root folder to start the frontend
+* **Node.js:** v14 or higher
+* **MongoDB:** v4.4 or higher
+* **Ganache:** Local blockchain emulator (for development)
+* **MetaMask:** Browser extension for interacting with Ganache.
+* **Git:** Version control system.
+* **Circom:**  For compiling ZKP circuits.
 
 
-## Account Roles and Access
-- Account #1: Admin (can manage users)
-- Account #2: Doctor (can submit claims)
-- Account #3: Insurance Provider (can verify claims)
+## Installation and Setup
+
+1. **Clone and Install Dependencies:**
+
+   ```bash
+   git clone <repository_url>
+   cd <project_directory>
+   npm install
+   cd backend && npm install
+   cd ../frontend && npm install
+   npm install -g circom
+   ```
+
+2. **ZKP Circuit Setup:**
+
+   ```bash
+   cd circuits
+   circom bloodPressureRange.circom --r1cs --wasm --sym
+   ```
+
+3. **Backend Setup:**
+
+   ```bash
+   cd backend
+   node scripts/setup-complete.js  // Compiles circuit, generates keys, sets up the ZKP system
+   node scripts/setup-roles.js    // Deploys contracts;  **Note the contract address displayed.**
+   ```
+
+4. **Environment Configuration:** Update the `.env` file with the contract address obtained from step 3.  Also note the account addresses and their assigned roles.
+
+
+5. **Ganache Setup:**
+
+   * Download and install Ganache.
+   * Create a new workspace.
+   * **Keep Ganache running throughout the process.**
+
+6. **MetaMask Configuration:**
+
+   * Add the Ganache network to MetaMask:
+      * Network Name: Ganache
+      * RPC URL: `http://127.0.0.1:7545`
+      * Chain ID: 1337
+      * Currency: ETH
+   * Import accounts from Ganache in the following order:
+      1. Admin
+      2. Doctor
+      3. Insurance Provider
+
+7. **Start the Application:**
+
+   * Start MongoDB.
+   * In the backend directory: `node server.js`
+   * In the root directory: `npm start` (to start the frontend)
+
+
+## Account Roles and Permissions
+
+| Account # | Role           | Permissions                                      |
+|-----------|-----------------|--------------------------------------------------|
+| 1         | Admin           | User management                                   |
+| 2         | Doctor          | Patient registration, claim submission            |
+| 3         | Insurance Provider | Claim verification                               |
+
+
+**Important:**  Maintain the order of accounts from Ganache (Admin, Doctor, Insurance Provider).
+
 
 ## Testing the System
 
-1. **Test ZKP Implementation**
-- cd backend
-- node scripts/test-zkp.js
+1. **ZKP Test:** `cd backend && node scripts/test-zkp.js`
 
+2. **Doctor Workflow:**
+   * Log in as the Doctor (Account #2).
+   * Submit claims with varying blood pressure values (e.g., 130, 150).  Observe eligibility based on the defined range.
 
+3. **Insurance Provider Workflow:**
+   * Log in as the Insurance Provider (Account #3).
+   * Review submitted claims.
+   * Verify proofs using the "Verify Proof" button.  Note that the actual blood pressure values remain hidden.
 
-2. **Test as Doctor**:
-- Login with doctor account (Account #2)
-- Submit claims with different blood pressure values:
-  - BP = 130 (should be eligible)
-  - BP = 150 (should not be eligible)
-
-3. **Test as Insurance Provider**:
-- Login with insurance account (Account #3)
-- View submitted claims
-- Verify proofs using "Verify Proof" button
-- Note that actual BP values are hidden
-
-## Important Notes
-- Always use accounts in the same order from Ganache
-- Admin must be the first account
-- Doctor must be the second account
-- Insurance provider must be the third account
-- MongoDB must be running before starting the backend
-- Ganache must be running before starting the application
-- MetaMask must be connected to Ganache network
 
 ## Troubleshooting
 
-1. **MetaMask Connection Issues**:
-- Ensure Ganache is running
-- Verify network configuration in MetaMask
-- Check if correct account is selected
+* **MetaMask Connection:** Ensure Ganache is running, network settings in MetaMask are correct, and the appropriate account is selected.
+* **MongoDB Connection:** Verify MongoDB is running, the connection string in `.env` is accurate, and database permissions are correctly configured.
+* **ZKP Verification:** Re-run `setup-complete.js`, check circuit compilation logs, and review proof generation parameters.
 
-2. **MongoDB Connection Issues**:
-- Verify MongoDB service is running
-- Check connection string in .env
-- Ensure database permissions are correct
 
-3. **ZKP Verification Issues**:
-- Run setup-complete.js again
-- Check if circuit compilation was successful
-- Verify proof generation parameters
+## Security Considerations
 
-## Security Features
-- ZKP for data privacy
-- Role-based access control
-- JWT authentication
-- Encrypted data storage
-- Two-factor authentication support
-
-## Technical Stack
-- Frontend: React, Material-UI
-- Backend: Node.js, Express
-- Database: MongoDB
-- Blockchain: Ethereum (Ganache)
-- ZKP: Circom, SnarkJS
-- Authentication: JWT, MetaMask
-
+* **Zero-Knowledge Proofs:**  Fundamental for data privacy.
+* **Role-Based Access Control:**  Limits access based on roles.
+* **JWT Authentication:**  Secure authentication mechanism.
+* **Encrypted Data Storage:**  Protects data at rest.
+* **(Future) Two-Factor Authentication:**  Enhanced
