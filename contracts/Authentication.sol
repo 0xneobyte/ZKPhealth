@@ -58,7 +58,8 @@ contract Authentication {
         require(!users[_userAddress].isRegistered, "User already registered");
         require(
             keccak256(bytes(_role)) == keccak256(bytes("patient")) ||
-            keccak256(bytes(_role)) == keccak256(bytes("doctor")),
+            keccak256(bytes(_role)) == keccak256(bytes("doctor")) ||
+            keccak256(bytes(_role)) == keccak256(bytes("insurance")),
             "Invalid role"
         );
         

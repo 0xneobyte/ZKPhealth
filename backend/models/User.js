@@ -4,18 +4,18 @@ const userSchema = new mongoose.Schema({
     walletAddress: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        lowercase: true
     },
     role: {
         type: String,
+        enum: ['admin', 'doctor', 'insurance', 'patient'],
         required: true
     },
     is2FAEnabled: {
         type: Boolean,
         default: false
-    },
-    totpSecret: String,
-    backupCode: String  // Add this field
+    }
 });
 
 module.exports = mongoose.model('User', userSchema); 

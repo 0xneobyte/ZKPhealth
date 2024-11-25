@@ -13,23 +13,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection with logging
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcare-zkp')
-    .then(() => {
-        console.log('Successfully connected to MongoDB.');
-    })
-    .catch((error) => {
-        console.error('Error connecting to MongoDB:', error);
-    });
+// At the top of your file
+mongoose.set('strictQuery', true);
 
-// Add connection error handling
-mongoose.connection.on('error', err => {
-    console.error('MongoDB connection error:', err);
-});
-
-mongoose.connection.once('open', () => {
-    console.log('MongoDB database connection established successfully');
-});
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((err) => console.error('MongoDB connection error:', err));
 
 // Routes with logging
 app.use('/auth', authRoutes);

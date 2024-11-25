@@ -1,41 +1,45 @@
-# Healthcare ZKP System
+1. npm install
 
-## Setup Instructions
+2. Start Ganache:
+- Download and install Ganache
+- Create new workspace
+- Keep Ganache running
 
-1. Install dependencies: 
-npm install
+3. Run the setup script:
+  node scripts/setup-roles.js
 
-2. Install and start Ganache:
-- Download Ganache from https://trufflesuite.com/ganache/
-- Create a new workspace
-- Keep note of the RPC URL (usually http://127.0.0.1:7545)
-
-3. Deploy the smart contract:
-truffle migrate --network development
-
-
-4. Copy the deployed contract address to .env file
-
-5. Start the development server:
-npm start
+- Copy the displayed contract address
+- Update .env with the new contract address
+- Note down the account addresses and their roles
 
 
-
-6. Make sure MetaMask is installed and connected to your local Ganache network:
-- Add a new network in MetaMask:
+4. Import accounts to MetaMask:
+- Add Ganache network to MetaMask:
   - Network Name: Ganache
   - RPC URL: http://127.0.0.1:7545
   - Chain ID: 1337
-  - Currency Symbol: ETH
+  - Currency: ETH
 
-7. Import a Ganache account into MetaMask using the private key
+- Import accounts from Ganache in order:
+  1. First account = Admin
+  2. Second account = Doctor
+  3. Third account = Insurance Provider
 
-The application should now be running at http://localhost:3000
+5. Start the backend:
+  cd backend
+npm start
 
-# Project Structure
-├── contracts/
-│   └── Authentication.sol
-├── migrations/
-│   └── 1_deploy_contracts.js
-├── truffle-config.js
-└── .env
+6. Start the frontend:
+  npm start
+
+
+## Account Roles
+- Account #1: Admin (can add doctors)
+- Account #2: Doctor (can add patients)
+- Account #3: Insurance Provider
+- Account #4+: Patients
+
+## Important Notes
+- Always use accounts in the same order from Ganache
+- Admin must be the first account
+- Doctor must be the second account
