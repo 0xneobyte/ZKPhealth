@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, Tabs, Tab, Dialog, DialogTitle, DialogContent, DialogActions, Alert } from '@mui/material';
+import { Box, Typography, Button, Tabs, Tab, Dialog, DialogTitle, DialogContent, DialogActions, Alert, TextField, Paper } from '@mui/material';
 import { useAuth } from '../auth/AuthContext';
 import PatientForm from '../patients/PatientForm';
 import PatientSearch from '../patients/PatientSearch';  // Add this import
@@ -17,6 +17,9 @@ const Dashboard = () => {
     const [qrUrl, setQrUrl] = useState('');
     const [error, setError] = useState('');
     const [backupCode, setBackupCode] = useState('');
+    const [patientId, setPatientId] = useState('');
+    const [bloodPressure, setBloodPressure] = useState('');
+    const [claimStatus, setClaimStatus] = useState('');
 
     const handleTabChange = (event, newValue) => {
         setTabValue(newValue);
@@ -72,6 +75,34 @@ const Dashboard = () => {
         } catch (error) {
             console.error('Error setting up 2FA:', error);
             setError(error.message || 'Failed to set up 2FA');
+        }
+    };
+
+    const submitClaim = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/insurance/verify-eligibility`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    patientId,
+                    doctorAddress: user.address,
+                    insuranceAddress: '0x3935cb7ed81d896ebd77f4c3bf03587963b6c4f8', // Your insurance provider address
+                    bloodPressure
+                })
+            });
+
+            const data = await response.json();
+            setClaimStatus(data.message);
+            
+            // Clear form
+            setPatientId('');
+            setBloodPressure('');
+        } catch (error) {
+            setClaimStatus('Error submitting claim');
+            console.error('Error:', error);
         }
     };
 
@@ -168,6 +199,45 @@ const Dashboard = () => {
                     <Button onClick={() => setOpen2FADialog(false)}>Close</Button>
                 </DialogActions>
             </Dialog>
+
+            <Paper sx={{ p: 3, mt: 3 }}>
+                <Typography variant="h6" gutterBottom>Submit Insurance Claim</Typography>
+                <form onSubmit={submitClaim}>
+                    <TextField
+                        fullWidth
+                        label="Patient ID"
+                        value={patientId}
+                        onChange={(e) => setPatientId(e.target.value)}
+                        margin="normal"
+                        required
+                    />
+                    <TextField
+                        fullWidth
+                        label="Blood Pressure (Systolic)"
+                        type="number"
+                        value={bloodPressure}
+                        onChange={(e) => setBloodPressure(e.target.value)}
+                        margin="normal"
+                        required
+                    />
+                    <Button 
+                        type="submit" 
+                        variant="contained" 
+                        color="primary"
+                        sx={{ mt: 2 }}
+                    >
+                        Submit Claim
+                    </Button>
+                </form>
+                {claimStatus && (
+                    <Typography 
+                        sx={{ mt: 2 }} 
+                        color={claimStatus.includes('qualifies') ? 'success.main' : 'error.main'}
+                    >
+                        {claimStatus}
+                    </Typography>
+                )}
+            </Paper>
         </Box>
     );
 };

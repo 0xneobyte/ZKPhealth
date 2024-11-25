@@ -163,21 +163,31 @@ export const AuthProvider = ({ children }) => {
                 token: signature
             };
 
-            // Don't update is2FAEnabled status, just update role if needed
-            const response = await fetch(`${process.env.REACT_APP_API_URL}/auth/users/${address}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    role: role
-                })
-            });
+            // Add error handling for server connection
+            try {
+                const apiUrl = process.env.REACT_APP_API_URL;
+                console.log('Attempting to connect to:', apiUrl);
+                
+                const response = await fetch(`${apiUrl}/auth/users/${address}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        role: role
+                    })
+                });
 
-            if (!response.ok) {
-                console.error('Failed to update MongoDB record');
-            } else {
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    console.error('Server response:', errorData);
+                    throw new Error(`Server returned ${response.status}: ${errorData}`);
+                }
+
                 console.log('MongoDB record updated');
+            } catch (error) {
+                console.error('Server connection error:', error);
+                // Continue with login even if server update fails
             }
             
             localStorage.setItem('auth_token', userData.token);
@@ -195,6 +205,7 @@ export const AuthProvider = ({ children }) => {
             
         } catch (error) {
             console.error('Error in completeLogin:', error);
+            throw error;
         }
     };
 

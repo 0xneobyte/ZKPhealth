@@ -6,6 +6,7 @@ import Dashboard from './components/dashboard/Dashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
 import { CircularProgress, Box } from '@mui/material';
 import TwoFactorAuth from './components/auth/TwoFactorAuth';
+import InsuranceDashboard from './components/insurance/InsuranceDashboard';
 
 const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();
@@ -63,6 +64,14 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <Dashboard />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    <Route 
+                        path="/insurance" 
+                        element={
+                            <ProtectedRoute>
+                                <InsuranceDashboard />
                             </ProtectedRoute>
                         } 
                     />

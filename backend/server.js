@@ -2,10 +2,12 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+
+// Import routes
 const authRoutes = require('./routes/auth');
 const patientRoutes = require('./routes/patients');
 const twoFactorRoutes = require('./routes/twoFactor');
-const errorHandler = require('./middleware/errorHandler');
+const insuranceRoutes = require('./routes/insurance');
 
 dotenv.config();
 
@@ -25,14 +27,30 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcar
     process.exit(1);
 });
 
-// Update CORS configuration
+// Add this after MongoDB connection
+mongoose.connection.on('connected', () => {
+    console.log('MongoDB connected successfully');
+});
+
+mongoose.connection.on('error', (err) => {
+    console.error('MongoDB connection error:', err);
+});
+
+// Middleware
+app.use(express.json());
 app.use(cors({
     origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 }));
 
-// Add health check endpoint
+// Request logging middleware
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+});
+
+// Health check endpoint
 app.get('/health', (req, res) => {
     res.json({ 
         status: 'ok',
@@ -40,15 +58,20 @@ app.get('/health', (req, res) => {
     });
 });
 
-app.use(express.json());
+// Mount routes
+if (authRoutes) app.use('/auth', authRoutes);
+if (patientRoutes) app.use('/patients', patientRoutes);
+if (twoFactorRoutes) app.use('/2fa', twoFactorRoutes);
+if (insuranceRoutes) app.use('/insurance', insuranceRoutes);
 
-// Routes
-app.use('/auth', authRoutes);
-app.use('/patients', patientRoutes);
-app.use('/2fa', twoFactorRoutes);
-
-// Error handling
-app.use(errorHandler);
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Server error:', err);
+    res.status(500).json({ 
+        success: false, 
+        message: err.message || 'Internal server error'
+    });
+});
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

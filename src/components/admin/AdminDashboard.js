@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Tabs, Tab, Paper, CircularProgress } from '@mui/material';
+import { Box, Typography, Tabs, Tab, Paper, CircularProgress, Button } from '@mui/material';
 import { useAuth } from '../auth/AuthContext';
 
 function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [tabValue, setTabValue] = useState(0);
   const [users, setUsers] = useState([]);
   const [error, setError] = useState('');
@@ -67,9 +67,18 @@ function AdminDashboard() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Admin Dashboard
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">
+          Admin Dashboard
+        </Typography>
+        <Button 
+          variant="contained" 
+          color="secondary" 
+          onClick={logout}
+        >
+          Logout
+        </Button>
+      </Box>
 
       <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 3 }}>
         <Tab label="Profile" />
