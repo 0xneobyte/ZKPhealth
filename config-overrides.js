@@ -20,5 +20,14 @@ module.exports = function override(config) {
             Buffer: ['buffer', 'Buffer']
         })
     ]);
+    
+    // Add this to ignore source-map warnings
+    config.ignoreWarnings = [/Failed to parse source map/];
+    
+    // Optionally disable source maps in production
+    if (process.env.NODE_ENV === 'production') {
+        config.devtool = false;
+    }
+    
     return config;
 }; 

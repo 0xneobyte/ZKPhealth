@@ -1,12 +1,14 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './components/auth/AuthContext';
 import Login from './components/auth/Login';
 import Dashboard from './components/dashboard/Dashboard';
+import AdminDashboard from './components/admin/AdminDashboard';
 import { CircularProgress, Box } from '@mui/material';
 import TwoFactorAuth from './components/auth/TwoFactorAuth';
 
-const AppContent = () => {
-    const { user, loading, pending2FA, verify2FA } = useAuth();
+const ProtectedRoute = ({ children }) => {
+    const { user, loading } = useAuth();
 
     if (loading) {
         return (
@@ -16,18 +18,58 @@ const AppContent = () => {
         );
     }
 
-    if (pending2FA) {
-        return <TwoFactorAuth onVerify={verify2FA} />;
+    if (!user) {
+        return <Navigate to="/login" />;
     }
 
-    return user ? <Dashboard /> : <Login />;
+    return children;
+};
+
+const RoleBasedRedirect = () => {
+    const { user } = useAuth();
+
+    if (!user) {
+        return <Navigate to="/login" />;
+    }
+
+    switch(user.role.toLowerCase()) {
+        case 'admin':
+            return <Navigate to="/admin" />;
+        case 'doctor':
+            return <Navigate to="/dashboard" />;
+        case 'insurance':
+            return <Navigate to="/insurance" />;
+        default:
+            return <Navigate to="/login" />;
+    }
 };
 
 function App() {
     return (
-        <AuthProvider>
-            <AppContent />
-        </AuthProvider>
+        <Router>
+            <AuthProvider>
+                <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route 
+                        path="/admin" 
+                        element={
+                            <ProtectedRoute>
+                                <AdminDashboard />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    <Route 
+                        path="/dashboard" 
+                        element={
+                            <ProtectedRoute>
+                                <Dashboard />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    <Route path="/" element={<RoleBasedRedirect />} />
+                </Routes>
+            </AuthProvider>
+        </Router>
     );
 }
 

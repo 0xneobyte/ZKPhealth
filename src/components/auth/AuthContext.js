@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { connectWallet, signMessage } from '../../utils/web3';
 import { AUTHENTICATION_ABI } from '../../utils/constants';
 import { authenticator } from 'otplib';
+import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext(null);
 
@@ -12,6 +13,7 @@ export const AuthProvider = ({ children }) => {
     const [contract, setContract] = useState(null);
     const [pending2FA, setPending2FA] = useState(false);
     const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const initContract = async () => {
@@ -181,6 +183,16 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem('auth_token', userData.token);
             localStorage.setItem('user', JSON.stringify(userData));
             setUser(userData);
+
+            // After successful login, redirect based on role
+            if (role === 'doctor') {
+                navigate('/dashboard');
+            } else if (role === 'admin') {
+                navigate('/admin');
+            } else if (role === 'insurance') {
+                navigate('/insurance');
+            }
+            
         } catch (error) {
             console.error('Error in completeLogin:', error);
         }
