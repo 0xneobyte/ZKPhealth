@@ -68,32 +68,22 @@ router.post('/verify-eligibility', async (req, res) => {
             bloodPressure 
         } = req.body;
 
-        console.log('📝 New claim submission:');
-        console.log('- Patient ID:', patientId);
-        console.log('- Doctor:', doctorAddress);
-        console.log('- Blood Pressure:', bloodPressure);
-
-        // Use ZKProof object
-        const { proof, isValid } = ZKProof.generateProof(
-            parseInt(bloodPressure), 
+        // Generate ZK-SNARK proof
+        const { proof, publicSignals, isValid } = await ZKProof.generateProof(
+            parseInt(bloodPressure),
             [120, 140]
         );
 
-        console.log('🔐 ZKP Result:');
-        console.log('- Eligible:', isValid);
-        console.log('- Proof Generated:', !!proof);
-
-        // Create and save the claim
+        // Store claim with proof
         const claim = await InsuranceClaim.create({
             patientId,
             doctorAddress,
             insuranceAddress,
             bloodPressure: 'HIDDEN',
-            zkProof: proof || 'invalid_proof',
+            zkProof: JSON.stringify(proof),
+            publicSignals: JSON.stringify(publicSignals),
             isEligible: isValid
         });
-
-        console.log('✅ Claim saved successfully:', claim);
 
         res.json({ 
             success: true, 
@@ -102,13 +92,9 @@ router.post('/verify-eligibility', async (req, res) => {
                 'Patient qualifies for wellness reward' : 
                 'Patient does not qualify'
         });
-
     } catch (error) {
-        console.error('❌ Error processing claim:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: error.message 
-        });
+        console.error('Error:', error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 

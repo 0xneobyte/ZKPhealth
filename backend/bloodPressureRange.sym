@@ -1,0 +1,6 @@
+1,4,0,main.bloodPressure
+2,2,0,main.minRange
+3,3,0,main.maxRange
+4,1,0,main.inRange
+5,5,0,main.greaterThanMin
+6,6,0,main.lessThanMax
