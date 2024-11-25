@@ -199,4 +199,15 @@ router.patch('/users/:walletAddress', async (req, res) => {
   }
 });
 
+// Add this route to get all users
+router.get('/users', async (req, res) => {
+  try {
+    const users = await User.find({});
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router; 

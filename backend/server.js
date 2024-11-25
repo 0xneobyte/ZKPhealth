@@ -11,27 +11,41 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Set strictQuery to false to match test script behavior
+mongoose.set('strictQuery', false);
+
+// MongoDB Connection using the same settings as the test script
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcare-zkp', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+})
+.then(() => console.log('Connected to MongoDB'))
+.catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+});
+
+// Update CORS configuration
+app.use(cors({
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
+}));
+
+// Add health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'ok',
+        mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    });
+});
+
 app.use(express.json());
 
-// At the top of your file
-mongoose.set('strictQuery', true);
-
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((err) => console.error('MongoDB connection error:', err));
-
-// Routes with logging
+// Routes
 app.use('/auth', authRoutes);
 app.use('/patients', patientRoutes);
 app.use('/2fa', twoFactorRoutes);
-
-// Add a test route
-app.get('/test', (req, res) => {
-    res.json({ message: 'Backend is working!' });
-});
 
 // Error handling
 app.use(errorHandler);

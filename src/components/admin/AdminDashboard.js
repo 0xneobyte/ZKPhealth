@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Tabs, Tab, Paper, TextField, Button, MenuItem } from '@mui/material';
+import { Box, Typography, Tabs, Tab, Paper, CircularProgress } from '@mui/material';
 import { useAuth } from '../auth/AuthContext';
-import Web3 from 'web3';
 
 function AdminDashboard() {
-  const { user, contract } = useAuth();
+  const { user } = useAuth();
   const [tabValue, setTabValue] = useState(0);
-  const [newUserRole, setNewUserRole] = useState('');
   const [users, setUsers] = useState([]);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleTabChange = (event, newValue) => {
@@ -23,61 +20,46 @@ function AdminDashboard() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:3001/auth/users');
+      setIsLoading(true);
+      const apiUrl = process.env.REACT_APP_API_URL;
+      
+      // First check if the server is running
+      try {
+        const healthCheck = await fetch(`${apiUrl}/health`, {
+          credentials: 'include'
+        });
+        if (!healthCheck.ok) {
+          throw new Error('Backend server is not running');
+        }
+      } catch (error) {
+        throw new Error(`Cannot connect to server at ${apiUrl}. Is it running?`);
+      }
+
+      console.log('Fetching users from:', `${apiUrl}/auth/users`);
+      const response = await fetch(`${apiUrl}/auth/users`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Users endpoint not found. Check your backend routes.');
+        }
+        const errorData = await response.text();
+        console.error('Server response:', errorData);
+        throw new Error(`Server returned ${response.status}: ${errorData}`);
+      }
+      
       const data = await response.json();
+      console.log('Fetched users:', data);
       setUsers(data);
+      setError('');
     } catch (error) {
       console.error('Error fetching users:', error);
-    }
-  };
-
-  const handleAddUser = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      const web3 = new Web3(window.ethereum);
-      const accounts = await web3.eth.getAccounts();
-      
-      // Find next unused account
-      const usedAddresses = users.map(user => user.walletAddress.toLowerCase());
-      const nextAccount = accounts.find(account => 
-        !usedAddresses.includes(account.toLowerCase())
-      );
-
-      if (!nextAccount) {
-        throw new Error('No available Ganache accounts');
-      }
-
-      // Register in smart contract
-      const tx = await contract.registerUser(nextAccount, newUserRole);
-      await tx.wait();
-
-      // Register in MongoDB
-      const response = await fetch('http://localhost:3001/auth/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          walletAddress: nextAccount,
-          role: newUserRole,
-          is2FAEnabled: false
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create user in database');
-      }
-
-      setSuccess(`User registered successfully! Wallet address: ${nextAccount}`);
-      setNewUserRole('');
-      fetchUsers(); // Refresh users list
-    } catch (error) {
-      console.error('Error adding user:', error);
-      setError(error.message || 'Failed to add user');
+      setError(`Failed to fetch users: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +73,6 @@ function AdminDashboard() {
 
       <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 3 }}>
         <Tab label="Profile" />
-        <Tab label="Add User" />
         <Tab label="View Users" />
       </Tabs>
 
@@ -100,57 +81,39 @@ function AdminDashboard() {
           <Typography variant="h6" gutterBottom>Profile</Typography>
           <Typography>Address: {user?.address}</Typography>
           <Typography>Role: {user?.role}</Typography>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            sx={{ mt: 2 }}
-            disabled={true} // 2FA functionality to be implemented later
-          >
-            Enable 2FA
-          </Button>
         </Paper>
       )}
 
       {tabValue === 1 && (
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Add New User</Typography>
-          {error && <Typography color="error">{error}</Typography>}
-          {success && <Typography color="success.main">{success}</Typography>}
-          
-          <form onSubmit={handleAddUser}>
-            <TextField
-              select
-              fullWidth
-              label="Role"
-              value={newUserRole}
-              onChange={(e) => setNewUserRole(e.target.value)}
-              sx={{ mb: 2 }}
-            >
-              <MenuItem value="admin">Admin</MenuItem>
-              <MenuItem value="doctor">Doctor</MenuItem>
-              <MenuItem value="insurance">Insurance Provider</MenuItem>
-            </TextField>
-            
-            <Button 
-              type="submit" 
-              variant="contained" 
-              disabled={isLoading || !newUserRole}
-            >
-              {isLoading ? 'Adding...' : 'Add User'}
-            </Button>
-          </form>
-        </Paper>
-      )}
-
-      {tabValue === 2 && (
-        <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>All Users</Typography>
-          {users.map((user, index) => (
-            <Box key={user._id} sx={{ mb: 2, p: 2, bgcolor: 'grey.100' }}>
-              <Typography>Address: {user.walletAddress}</Typography>
-              <Typography>Role: {user.role}</Typography>
+          {error && (
+            <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>
+          )}
+          {isLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+              <CircularProgress />
             </Box>
-          ))}
+          ) : (
+            users.map((user) => (
+              <Box 
+                key={user._id} 
+                sx={{ 
+                  mb: 2, 
+                  p: 2, 
+                  bgcolor: 'grey.100',
+                  borderRadius: 1,
+                  '&:hover': {
+                    bgcolor: 'grey.200'
+                  }
+                }}
+              >
+                <Typography><strong>Address:</strong> {user.walletAddress}</Typography>
+                <Typography><strong>Role:</strong> {user.role}</Typography>
+                <Typography><strong>2FA Enabled:</strong> {user.is2FAEnabled ? 'Yes' : 'No'}</Typography>
+              </Box>
+            ))
+          )}
         </Paper>
       )}
     </Box>
