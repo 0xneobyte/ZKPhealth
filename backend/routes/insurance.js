@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const InsuranceClaim = require('../models/InsuranceClaim');
-const ZKProof = require('../utils/zkp');
+const ZKRollup = require('../utils/rollup');
 
 // Get all claims
 router.get('/claims', async (req, res) => {
@@ -58,7 +58,7 @@ router.post('/verify/:claimId', async (req, res) => {
     }
 });
 
-// Submit claim endpoint
+// Submit claim endpoint with rollup
 router.post('/verify-eligibility', async (req, res) => {
     try {
         const { 
@@ -68,30 +68,39 @@ router.post('/verify-eligibility', async (req, res) => {
             bloodPressure 
         } = req.body;
 
-        // Generate ZK-SNARK proof
-        const { proof, publicSignals, isValid } = await ZKProof.generateProof(
-            parseInt(bloodPressure),
-            [120, 140]
-        );
+        // Add to rollup batch
+        const batchResult = await ZKRollup.addToBatch({
+            patientId,
+            doctorAddress,
+            insuranceAddress,
+            bloodPressure: parseInt(bloodPressure)
+        });
 
-        // Store claim with proof
+        // If batch is processed, store batch proof
+        if (batchResult) {
+            // Store batch proof in blockchain (simplified)
+            console.log('Batch processed:', batchResult);
+        }
+
+        // Store individual claim in MongoDB
         const claim = await InsuranceClaim.create({
             patientId,
             doctorAddress,
             insuranceAddress,
             bloodPressure: 'HIDDEN',
-            zkProof: JSON.stringify(proof),
-            publicSignals: JSON.stringify(publicSignals),
-            isEligible: isValid
+            zkProof: 'BATCH_PROCESSING',
+            isEligible: bloodPressure >= 120 && bloodPressure <= 140
         });
 
         res.json({ 
             success: true, 
-            isEligible: isValid,
-            message: isValid ? 
+            isEligible: claim.isEligible,
+            message: claim.isEligible ? 
                 'Patient qualifies for wellness reward' : 
-                'Patient does not qualify'
+                'Patient does not qualify',
+            batchProcessed: !!batchResult
         });
+
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ success: false, message: error.message });

@@ -1,109 +1,264 @@
 const express = require('express');
 const router = express.Router();
 const Patient = require('../models/Patient');
-const generatePatientId = require('../utils/patientIdGenerator');
+const PatientBatch = require('../models/PatientBatch');
+const PatientRollup = require('../utils/patientRollup');
 const { encrypt, decrypt } = require('../utils/encryption');
 
-// Generate new patient ID
+// IMPORTANT: Put batch-progress route FIRST
+router.get('/batch-progress', async (req, res) => {
+    try {
+        // Get current batch size from PatientRollup singleton
+        const currentBatchSize = PatientRollup.getCurrentBatchSize();
+        const totalBatchSize = PatientRollup.getBatchSize();
+        
+        console.log('Batch progress request:', {
+            current: currentBatchSize,
+            total: totalBatchSize,
+            remaining: totalBatchSize - currentBatchSize
+        });
+
+        res.json({
+            success: true,
+            progress: {
+                current: currentBatchSize,
+                total: totalBatchSize,
+                remaining: totalBatchSize - currentBatchSize
+            }
+        });
+    } catch (error) {
+        console.error('Error getting batch progress:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message 
+        });
+    }
+});
+
+// Add this endpoint for generating patient IDs
 router.get('/generate-id', async (req, res) => {
     try {
-        const patientId = await generatePatientId();
-        res.json({ patientId });
+        // Get the latest patient ID from DB
+        const latestPatient = await Patient.findOne().sort({ _id: -1 });
+        
+        // Generate new ID
+        let newId;
+        if (latestPatient) {
+            const lastId = parseInt(latestPatient.patientId.split('-')[1]);
+            newId = `DM-${String(lastId + 1).padStart(5, '0')}`;
+        } else {
+            newId = 'DM-00001';
+        }
+        
+        res.json({ patientId: newId });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error generating patient ID:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to generate patient ID' 
+        });
     }
 });
 
-// Create patient record with encryption
-router.post('/', async (req, res) => {
+router.post('/register', async (req, res) => {
     try {
-        // Validate incoming data
-        console.log('Received patient data:', {
-            ...req.body,
-            patientName: '***', // Hide sensitive data in logs
+        const { patientData, doctorAddress } = req.body;
+
+        // Add to rollup batch
+        const batchResult = await PatientRollup.addToBatch({
+            ...patientData,
+            doctorAddress
         });
 
-        if (!req.body.patientId || !req.body.patientName || !req.body.age || !req.body.gender) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        // If batch is ready, store batch proof
+        if (batchResult) {
+            await PatientBatch.create({
+                doctorAddress,
+                patientsCount: batchResult.patients.length,
+                batchProof: batchResult.batchProof,
+                patients: batchResult.patients
+            });
+            console.log('Patient batch processed:', batchResult);
         }
 
-        const encryptedData = {
-            patientId: req.body.patientId,  // Don't generate new ID, use the one provided
-            patientName: encrypt(req.body.patientName),
-            age: encrypt(req.body.age.toString()),
-            gender: encrypt(req.body.gender),
-            clinicalDescription: encrypt(req.body.clinicalDescription || ''),
-            disease: encrypt(req.body.disease || ''),
-            doctorAddress: req.body.doctorAddress // Don't encrypt for searchability
-        };
+        // Store individual patient
+        const patient = await Patient.create(patientData);
 
-        console.log('Attempting to save encrypted data...');
-        const patient = new Patient(encryptedData);
-        await patient.save();
-        console.log('Patient data saved successfully');
+        res.json({
+            success: true,
+            patient,
+            batchProcessed: !!batchResult
+        });
 
-        // Return decrypted data in response
-        const decryptedResponse = {
-            ...req.body,
-            _id: patient._id
-        };
-        
-        res.status(201).json(decryptedResponse);
     } catch (error) {
-        console.error('Detailed error:', error);
-        res.status(400).json({ 
-            error: error.message,
-            details: error.errors ? Object.keys(error.errors).map(key => ({
-                field: key,
-                message: error.errors[key].message
-            })) : null
+        console.error('Error registering patient:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Add monitoring endpoints
+router.get('/batches/status', async (req, res) => {
+    try {
+        // Get all batches with status
+        const batches = await PatientBatch.find({})
+            .sort({ timestamp: -1 })
+            .limit(10);  // Last 10 batches
+
+        const batchStats = {
+            totalBatches: await PatientBatch.countDocuments(),
+            totalPatients: await PatientBatch.aggregate([
+                { $group: { _id: null, total: { $sum: "$patientsCount" } } }
+            ]),
+            recentBatches: batches
+        };
+
+        res.json({
+            success: true,
+            stats: batchStats
+        });
+    } catch (error) {
+        console.error('Error fetching batch status:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Verify specific batch
+router.post('/batches/verify/:batchId', async (req, res) => {
+    try {
+        const { batchId } = req.params;
+        const verificationResult = await PatientRollup.verifyBatch(batchId);
+
+        res.json({
+            success: true,
+            verification: verificationResult
+        });
+    } catch (error) {
+        console.error('Error verifying batch:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Add this POST endpoint for patient registration
+router.post('/', async (req, res) => {
+    try {
+        const patientData = req.body;
+        console.log('Received patient data');
+
+        // Encrypt data
+        const encryptedData = {
+            patientId: patientData.patientId,
+            patientName: encrypt(patientData.patientName),
+            age: encrypt(patientData.age.toString()),
+            gender: encrypt(patientData.gender),
+            clinicalDescription: encrypt(patientData.clinicalDescription),
+            disease: encrypt(patientData.disease),
+            doctorAddress: patientData.doctorAddress
+        };
+
+        // Save to MongoDB first
+        const patient = await Patient.create(encryptedData);
+        console.log('Patient saved to MongoDB with encrypted data');
+
+        // Add to rollup batch
+        const batchResult = await PatientRollup.addToBatch({
+            ...patientData,
+            doctorAddress: patientData.doctorAddress
+        });
+
+        // Only trigger blockchain transaction if batch is complete
+        if (batchResult) {
+            // This will trigger MetaMask only once per 10 patients
+            await PatientBatch.create({
+                doctorAddress: patientData.doctorAddress,
+                patientsCount: batchResult.patients.length,
+                batchProof: batchResult.batchProof,
+                patients: batchResult.patients
+            });
+            console.log('Patient batch processed:', batchResult);
+        }
+
+        res.json({
+            success: true,
+            patient: {
+                ...patient.toObject(),
+                patientName: patientData.patientName,
+                patientId: patient.patientId
+            },
+            batchProcessed: !!batchResult
+        });
+
+    } catch (error) {
+        console.error('Error saving patient:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message 
         });
     }
 });
 
-// Get all patients for a doctor with decryption
-router.get('/doctor/:doctorAddress', async (req, res) => {
+// Move the search endpoint BEFORE the /:patientId endpoint
+router.get('/search/:patientId', async (req, res) => {
     try {
-        const patients = await Patient.find({ doctorAddress: req.params.doctorAddress });
-        const decryptedPatients = patients.map(patient => ({
-            _id: patient._id,
-            patientId: patient.patientId,
+        console.log('Searching for patient:', req.params.patientId);
+        const patient = await Patient.findOne({ patientId: req.params.patientId });
+        
+        if (!patient) {
+            console.log('Patient not found');
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Patient not found' 
+            });
+        }
+
+        console.log('Patient found, decrypting data...');
+
+        // Decrypt all sensitive fields
+        const decryptedPatient = {
+            ...patient.toObject(),
             patientName: decrypt(patient.patientName),
-            age: parseInt(decrypt(patient.age)),
+            age: decrypt(patient.age),
             gender: decrypt(patient.gender),
             clinicalDescription: decrypt(patient.clinicalDescription),
-            disease: decrypt(patient.disease),
-            doctorAddress: patient.doctorAddress,
-            createdAt: patient.createdAt
-        }));
-        res.json(decryptedPatients);
+            disease: decrypt(patient.disease)
+        };
+
+        console.log('Data decrypted successfully');
+
+        res.json({
+            success: true,
+            patient: decryptedPatient
+        });
+
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error searching for patient:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message 
+        });
     }
 });
 
-// Add search endpoint with decryption
-router.get('/search/:patientId', async (req, res) => {
+// Add endpoint to get patient with decrypted data
+router.get('/:patientId', async (req, res) => {
     try {
         const patient = await Patient.findOne({ patientId: req.params.patientId });
         if (!patient) {
-            return res.status(404).json({ error: 'Patient not found' });
+            return res.status(404).json({ message: 'Patient not found' });
         }
 
-        const decryptedData = {
-            patientId: patient.patientId,
+        // Decrypt patient data
+        const decryptedPatient = {
+            ...patient.toObject(),
             patientName: decrypt(patient.patientName),
-            age: parseInt(decrypt(patient.age)),
-            gender: decrypt(patient.gender),
             clinicalDescription: decrypt(patient.clinicalDescription),
-            disease: decrypt(patient.disease),
-            doctorAddress: patient.doctorAddress,
-            createdAt: patient.createdAt
+            age: decrypt(patient.age),
+            gender: decrypt(patient.gender)
         };
 
-        res.json(decryptedData);
+        res.json(decryptedPatient);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching patient:', error);
+        res.status(500).json({ message: error.message });
     }
 });
 

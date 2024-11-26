@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
+// Add this line to remove the warning
+mongoose.set('strictQuery', false);
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const patientRoutes = require('./routes/patients');
@@ -13,10 +16,7 @@ dotenv.config();
 
 const app = express();
 
-// Set strictQuery to false to match test script behavior
-mongoose.set('strictQuery', false);
-
-// MongoDB Connection using the same settings as the test script
+// MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcare-zkp', {
     useNewUrlParser: true,
     useUnifiedTopology: true
@@ -25,15 +25,6 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcar
 .catch(err => {
     console.error('MongoDB connection error:', err);
     process.exit(1);
-});
-
-// Add this after MongoDB connection
-mongoose.connection.on('connected', () => {
-    console.log('MongoDB connected successfully');
-});
-
-mongoose.connection.on('error', (err) => {
-    console.error('MongoDB connection error:', err);
 });
 
 // Middleware
@@ -50,19 +41,20 @@ app.use((req, res, next) => {
     next();
 });
 
-// Health check endpoint
+// Add health check endpoint
 app.get('/health', (req, res) => {
     res.json({ 
         status: 'ok',
-        mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+        mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        timestamp: new Date().toISOString()
     });
 });
 
 // Mount routes
-if (authRoutes) app.use('/auth', authRoutes);
-if (patientRoutes) app.use('/patients', patientRoutes);
-if (twoFactorRoutes) app.use('/2fa', twoFactorRoutes);
-if (insuranceRoutes) app.use('/insurance', insuranceRoutes);
+app.use('/patients', patientRoutes);
+app.use('/auth', authRoutes);
+app.use('/2fa', twoFactorRoutes);
+app.use('/insurance', insuranceRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

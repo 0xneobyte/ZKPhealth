@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
     Box,
@@ -14,20 +13,31 @@ const PatientSearch = () => {
     const [patientId, setPatientId] = useState('');
     const [patientData, setPatientData] = useState(null);
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const handleSearch = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch(`${process.env.REACT_APP_API_URL}/patients/search/${patientId}`);
-            if (!response.ok) {
-                throw new Error('Patient not found');
-            }
-            const data = await response.json();
-            setPatientData(data);
+            setLoading(true);
             setError('');
-        } catch (err) {
-            setError(err.message);
+            console.log('Searching for patient:', patientId);
+
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/patients/search/${patientId}`);
+            const data = await response.json();
+            
+            console.log('Search response:', data);
+
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to find patient');
+            }
+
+            setPatientData(data.patient);
+        } catch (error) {
+            console.error('Search error:', error);
+            setError(error.message);
             setPatientData(null);
+        } finally {
+            setLoading(false);
         }
     };
 
