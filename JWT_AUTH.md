@@ -1,6 +1,6 @@
 # JWT Authentication in Healthcare ZKP System
 
-## Overview
+## 1. Authentication Flow Overview
 
 ```mermaid
 sequenceDiagram
@@ -9,39 +9,66 @@ sequenceDiagram
     participant Backend
     participant Blockchain
     
-    User->>Frontend: Connect MetaMask
-    Frontend->>Blockchain: Get Address
-    Frontend->>Backend: Request Challenge
-    Backend-->>Frontend: Return Challenge
-    Frontend->>User: Sign Challenge (MetaMask)
-    User-->>Frontend: Return Signature
-    Frontend->>Backend: Submit Signature
-    Note over Backend: Verify Signature
-    Backend-->>Frontend: Return JWT Token
-    Frontend->>Frontend: Store Token
+    Note over User,Blockchain: Step 1: Initial Connection
+    User->>Frontend: 1. Connect MetaMask
+    Frontend->>Blockchain: 2. Get Address
+    
+    Note over Frontend,Backend: Step 2: Challenge-Response
+    Frontend->>Backend: 3. Request Challenge
+    Backend-->>Frontend: 4. Return Challenge
+    
+    Note over User,Frontend: Step 3: Signature Generation
+    Frontend->>User: 5. Sign Challenge (MetaMask)
+    User-->>Frontend: 6. Return Signature
+    
+    Note over Frontend,Backend: Step 4: Token Generation
+    Frontend->>Backend: 7. Submit Signature
+    Note over Backend: 8. Verify Signature
+    Backend-->>Frontend: 9. Return JWT Token
+    Frontend->>Frontend: 10. Store Token
 ```
 
-## Implementation Details
+### Explanation:
+1. **Initial Connection (Steps 1-2)**:
+   - User clicks "Connect" button
+   - MetaMask popup appears
+   - System gets user's Ethereum address
 
-### 1. Authentication Flow
+2. **Challenge-Response (Steps 3-4)**:
+   - Backend generates unique challenge
+   - Prevents replay attacks
+   - Challenge includes timestamp
 
+3. **Signature Generation (Steps 5-6)**:
+   - User signs message with private key
+   - Proves ownership of address
+   - MetaMask handles signing
+
+4. **Token Generation (Steps 7-10)**:
+   - Backend verifies signature
+   - Generates JWT with user role
+   - Frontend stores token securely
+
+## 2. Implementation Details
+
+### Authentication Flow Code
 ```javascript
 // AuthContext.js
 const login = async () => {
     try {
-        // 1. Connect to MetaMask
+        // Step 1: Connect MetaMask
         const { signer, address } = await connectWallet();
         
-        // 2. Get user role from blockchain
+        // Step 2: Get role from blockchain
         const role = await contract.getUserRole(address);
         
-        // 3. Sign message for JWT
+        // Step 3: Sign message
         const signature = await signMessage(
             `Login to Healthcare ZKP System\nNonce: ${nonce}`,
             signer
         );
         
-        // 4. Store JWT
+        // Step 4: Store JWT
         localStorage.setItem('auth_token', signature);
         localStorage.setItem('user', JSON.stringify({
             address,
@@ -54,71 +81,69 @@ const login = async () => {
 };
 ```
 
-### 2. JWT Token Structure
+### Explanation:
+- **connectWallet()**: Handles MetaMask connection
+- **getUserRole()**: Fetches role from smart contract
+- **signMessage()**: Creates cryptographic proof of ownership
+- **localStorage**: Securely stores session data
+
+## 3. JWT Token Structure
 
 ```javascript
 // Backend token generation
 const token = jwt.sign(
     {
-        address: user.address,
-        role: user.role,
-        nonce: generateNonce()
+        address: user.address,  // Ethereum address
+        role: user.role,        // User role (admin/doctor/insurance)
+        nonce: generateNonce()  // Unique nonce for security
     },
     process.env.JWT_SECRET,
-    { expiresIn: '24h' }
+    { expiresIn: '24h' }       // Token expires in 24 hours
 );
 ```
 
-### 3. Protected Routes
+### Explanation:
+- **address**: Links token to specific user
+- **role**: Determines access permissions
+- **nonce**: Prevents token reuse
+- **expiresIn**: Forces periodic re-authentication
+
+## 4. Protected Routes System
 
 ```mermaid
 graph TB
     subgraph Frontend Protection
-        R[Route Request] --> AC[Auth Check]
-        AC -->|No Token| L[Login Page]
-        AC -->|Has Token| P[Protected Component]
+        R[1. Route Request] --> AC[2. Auth Check]
+        AC -->|No Token| L[3A. Login Page]
+        AC -->|Has Token| P[3B. Protected Component]
     end
     
     subgraph Backend Protection
-        AR[API Request] --> VM[Verify Middleware]
-        VM -->|Invalid Token| E[Error 401]
-        VM -->|Valid Token| H[Handle Request]
+        AR[1. API Request] --> VM[2. Verify Middleware]
+        VM -->|Invalid Token| E[3A. Error 401]
+        VM -->|Valid Token| H[3B. Handle Request]
     end
 ```
 
-### 4. Middleware Implementation
+### Explanation:
+1. **Frontend Protection**:
+   - Checks token presence
+   - Redirects unauthorized users
+   - Handles token expiry
 
-```javascript
-// auth.middleware.js
-const verifyToken = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    
-    if (!token) {
-        return res.status(401).json({ 
-            message: 'No token provided' 
-        });
-    }
-    
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
-        next();
-    } catch (error) {
-        return res.status(401).json({ 
-            message: 'Invalid token' 
-        });
-    }
-};
-```
+2. **Backend Protection**:
+   - Validates token authenticity
+   - Checks user permissions
+   - Secures API endpoints
 
-### 5. Role-Based Access Control
+## 5. Role-Based Access Control
 
 ```mermaid
 graph LR
     subgraph JWT Claims
-        T[Token] --> A[Address]
-        T --> R[Role]
-        T --> E[Expiry]
+        T[Token] --> A[1. Address]
+        T --> R[2. Role]
+        T --> E[3. Expiry]
     end
     
     subgraph Access Control
@@ -128,117 +153,68 @@ graph LR
     end
 ```
 
-### 6. Security Features
+### Explanation:
+1. **Token Claims**:
+   - Address: User identifier
+   - Role: Access level
+   - Expiry: Security timeout
 
-1. **Token Storage**
-   ```javascript
-   // Secure storage in localStorage
-   localStorage.setItem('auth_token', token);
-   ```
+2. **Route Protection**:
+   - Each route checks role
+   - Prevents unauthorized access
+   - Maintains separation of concerns
 
-2. **Token Refresh**
-   ```javascript
-   // Refresh token before expiry
-   const refreshToken = async () => {
-       const currentToken = localStorage.getItem('auth_token');
-       // Implement refresh logic
-   };
-   ```
+## 6. Security Features
 
-3. **Logout Handling**
-   ```javascript
-   const logout = () => {
-       localStorage.removeItem('auth_token');
-       localStorage.removeItem('user');
-       setUser(null);
-   };
-   ```
-
-### 7. Integration with MetaMask
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant MM as MetaMask
-    participant F as Frontend
-    participant B as Backend
-    
-    U->>MM: Connect Wallet
-    MM-->>F: Return Address
-    F->>B: Request Challenge
-    B-->>F: Return Challenge
-    F->>MM: Request Signature
-    MM->>U: Prompt to Sign
-    U->>MM: Approve
-    MM-->>F: Return Signature
-    F->>B: Verify & Get JWT
-```
-
-## Error Handling
-
+1. **Token Storage**:
 ```javascript
-try {
-    // Verify JWT
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Check role permissions
-    if (!hasPermission(decoded.role, requiredRole)) {
-        throw new Error('Insufficient permissions');
-    }
-    
-} catch (error) {
-    if (error.name === 'TokenExpiredError') {
-        // Handle expired token
-    } else if (error.name === 'JsonWebTokenError') {
-        // Handle invalid token
-    } else {
-        // Handle other errors
-    }
-}
+// Secure storage implementation
+localStorage.setItem('auth_token', token);
 ```
 
-## Best Practices Implemented
+2. **Token Refresh**:
+```javascript
+const refreshToken = async () => {
+    const currentToken = localStorage.getItem('auth_token');
+    // Implement refresh logic
+};
+```
 
-1. **Token Security**
-   - Short expiration time
-   - Secure storage
-   - HTTPS only
+3. **Logout**:
+```javascript
+const logout = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    setUser(null);
+};
+```
 
-2. **Role Validation**
-   - Double validation (Frontend & Backend)
-   - Role-based routing
-   - Permission checks
+### Explanation:
+- **Storage**: Secure token storage in browser
+- **Refresh**: Maintains session validity
+- **Logout**: Cleans up session data
 
-3. **Error Management**
-   - Proper error messages
-   - Automatic logout on token expiry
-   - Refresh token mechanism
+## 7. Testing Authentication
 
-## Testing Authentication
-
-1. **Login Flow**
+1. **Login Flow Test**:
 ```bash
-# Test login process
+# Step-by-step test process
 1. Clear localStorage
 2. Connect MetaMask
 3. Sign message
 4. Verify JWT received
 ```
 
-2. **Protected Routes**
+2. **Protected Routes Test**:
 ```bash
-# Test route protection
+# Security testing steps
 1. Try accessing protected route without token
 2. Access with invalid token
 3. Access with expired token
 4. Access with valid token
 ```
 
-3. **Role Verification**
-```bash
-# Test role-based access
-1. Login as Doctor
-2. Attempt Insurance routes
-3. Login as Insurance
-4. Attempt Admin routes
-``` 
+### Explanation:
+- Ensures security measures work
+- Validates user experience
+- Confirms proper error handling
