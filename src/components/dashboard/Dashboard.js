@@ -20,8 +20,9 @@ import { connectWallet } from "../../utils/web3";
 import { ethers } from "ethers";
 import QRCode from "qrcode.react";
 import { twoFactorService } from "../../services/twoFactor.service";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { getConnectedContract } from "../../services/contract.service";
+import InsuranceDashboard from "../insurance/InsuranceDashboard";
 
 const Dashboard = () => {
   const { user, logout, loading, contract } = useAuth();
@@ -195,190 +196,71 @@ const Dashboard = () => {
     }
   };
 
+  // Render different dashboards based on user role
+  if (user?.role === "insurance") {
+    return <InsuranceDashboard />;
+  }
+
+  if (user?.role === "doctor") {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+          <Typography variant="h4">Welcome, Doctor</Typography>
+          <Button variant="contained" color="secondary" onClick={logout}>
+            Logout
+          </Button>
+        </Box>
+
+        <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 3 }}>
+          <Tab label="Profile" />
+          <Tab label="Register Patient" />
+          <Tab label="Search Patient" />
+        </Tabs>
+
+        {tabValue === 0 ? (
+          <Box>
+            <Typography variant="body1" gutterBottom>
+              Address: {user?.address}
+            </Typography>
+            <Typography variant="body1" gutterBottom>
+              Role: {user?.role}
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handle2FASetup}
+              disabled={is2FAEnabled}
+              sx={{ mt: 2 }}
+            >
+              {is2FAEnabled ? "2FA Enabled" : "Enable 2FA"}
+            </Button>
+          </Box>
+        ) : tabValue === 1 ? (
+          <PatientForm />
+        ) : (
+          <PatientSearch />
+        )}
+      </Box>
+    );
+  }
+
+  // Default case - unauthorized access
   return (
     <Box sx={{ p: 3 }}>
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-        <Typography variant="h4">
-          Welcome, {user?.role === "doctor" ? "Doctor" : "Patient"}
-        </Typography>
-        <Button variant="contained" color="secondary" onClick={logout}>
-          Logout
-        </Button>
-      </Box>
-
-      {user?.role === "doctor" ? (
-        <>
-          <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 3 }}>
-            <Tab label="Profile" />
-            <Tab label="Register Patient" />
-            <Tab label="Search Patient" />
-          </Tabs>
-
-          {tabValue === 0 ? (
-            <Box>
-              <Typography variant="body1" gutterBottom>
-                Address: {user?.address}
-              </Typography>
-              <Typography variant="body1" gutterBottom>
-                Role: {user?.role}
-              </Typography>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handle2FASetup}
-                disabled={is2FAEnabled}
-                sx={{ mt: 2 }}
-              >
-                {is2FAEnabled ? "2FA Enabled" : "Enable 2FA"}
-              </Button>
-            </Box>
-          ) : tabValue === 1 ? (
-            <PatientForm />
-          ) : (
-            <PatientSearch />
-          )}
-        </>
-      ) : (
-        <Typography>
-          Access Denied. Only doctors can access this page.
-        </Typography>
-      )}
-
-      <Dialog open={open2FADialog} onClose={() => setOpen2FADialog(false)}>
-        <DialogTitle>Setup Two-Factor Authentication</DialogTitle>
-        <DialogContent>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          {step === 1 && (
-            <>
-              <Typography variant="body1" gutterBottom>
-                1. Scan this QR code with your authenticator app (Google
-                Authenticator, Authy, etc.)
-              </Typography>
-              {qrCodeData && (
-                <Box sx={{ textAlign: "center", my: 2 }}>
-                  <QRCode
-                    value={qrCodeData}
-                    size={256}
-                    level="M"
-                    includeMargin={true}
-                  />
-                </Box>
-              )}
-              <Typography variant="body1" gutterBottom>
-                2. Enter the 6-digit code from your authenticator app to verify:
-              </Typography>
-              <Box sx={{ mt: 1 }}>
-                <input
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    fontSize: "16px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                    boxSizing: "border-box",
-                  }}
-                  value={verificationCode}
-                  onChange={(e) => {
-                    const value = e.target.value
-                      .replace(/[^0-9]/g, "")
-                      .slice(0, 6);
-                    setVerificationCode(value);
-                  }}
-                  placeholder="Enter 6-digit code"
-                  type="tel"
-                  pattern="[0-9]*"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck="false"
-                  data-lpignore="true"
-                  aria-label="Verification code input"
-                />
-              </Box>
-              <Button
-                fullWidth
-                variant="contained"
-                onClick={handleVerify}
-                sx={{ mt: 2 }}
-              >
-                Verify Code
-              </Button>
-            </>
-          )}
-
-          {step === 2 && (
-            <>
-              <Typography variant="body1" gutterBottom>
-                Code verified successfully! Click below to enable 2FA on the
-                blockchain:
-              </Typography>
-              <Button
-                fullWidth
-                variant="contained"
-                onClick={handleEnableOnBlockchain}
-                sx={{ mt: 2 }}
-              >
-                Enable 2FA
-              </Button>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Paper sx={{ p: 3, mt: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Submit Insurance Claim
-        </Typography>
-        <form onSubmit={submitClaim}>
-          <TextField
-            fullWidth
-            label="Patient ID"
-            value={patientId}
-            onChange={(e) => setPatientId(e.target.value)}
-            margin="normal"
-            required
-          />
-          <TextField
-            fullWidth
-            label="Blood Pressure (Systolic)"
-            type="number"
-            value={bloodPressure}
-            onChange={(e) => setBloodPressure(e.target.value)}
-            margin="normal"
-            required
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            sx={{ mt: 2 }}
-          >
-            Submit Claim
-          </Button>
-        </form>
-        {claimStatus && (
-          <Typography
-            sx={{ mt: 2 }}
-            color={
-              claimStatus.includes("qualifies") ? "success.main" : "error.main"
-            }
-          >
-            {claimStatus}
-          </Typography>
-        )}
-      </Paper>
+      <Typography variant="h4" gutterBottom>
+        Access Denied
+      </Typography>
+      <Typography>
+        You don't have permission to access this dashboard.
+      </Typography>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={logout}
+        sx={{ mt: 2 }}
+      >
+        Logout
+      </Button>
     </Box>
   );
 };
