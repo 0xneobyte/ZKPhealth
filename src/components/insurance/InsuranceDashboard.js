@@ -49,6 +49,7 @@ function InsuranceDashboard() {
   };
 
   const handleViewDetails = (claim) => {
+    console.log("Viewing claim details:", claim);
     setSelectedClaim(claim);
     setOpenDialog(true);
   };
@@ -154,6 +155,7 @@ function InsuranceDashboard() {
                   <TableCell>Patient ID</TableCell>
                   <TableCell>Claim Type</TableCell>
                   <TableCell>Total Cost</TableCell>
+                  <TableCell>Eligibility</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Date</TableCell>
                   <TableCell>Actions</TableCell>
@@ -165,6 +167,13 @@ function InsuranceDashboard() {
                     <TableCell>{claim.patientId}</TableCell>
                     <TableCell>{claim.claimType}</TableCell>
                     <TableCell>${claim.totalCost}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={claim.isEligible ? "Eligible" : "Not Eligible"}
+                        color={claim.isEligible ? "success" : "error"}
+                        title={claim.eligibilityReason}
+                      />
+                    </TableCell>
                     <TableCell>
                       <Chip
                         label={claim.status}
@@ -246,6 +255,46 @@ function InsuranceDashboard() {
                     <Typography variant="subtitle1" sx={{ mt: 1 }}>
                       Total Cost: ${selectedClaim.totalCost}
                     </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Eligibility Status
+                  </Typography>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography
+                      color={
+                        selectedClaim.isEligible ? "success.main" : "error.main"
+                      }
+                      variant="h6"
+                      gutterBottom
+                    >
+                      {selectedClaim.isEligible ? "Eligible" : "Not Eligible"}
+                    </Typography>
+                    {selectedClaim.eligibilityReason && (
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 2,
+                          mt: 1,
+                          backgroundColor: selectedClaim.isEligible
+                            ? "success.light"
+                            : "error.light",
+                          "& pre": {
+                            margin: 0,
+                            whiteSpace: "pre-line",
+                            fontFamily: "inherit",
+                            color: selectedClaim.isEligible
+                              ? "success.dark"
+                              : "error.dark",
+                            fontSize: "0.875rem",
+                            lineHeight: 1.5,
+                          },
+                        }}
+                      >
+                        <pre>{selectedClaim.eligibilityReason}</pre>
+                      </Paper>
+                    )}
                   </Box>
                 </Grid>
               </Grid>

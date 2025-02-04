@@ -64,6 +64,16 @@ const insuranceClaimSchema = new mongoose.Schema({
     enum: ["pending", "approved", "rejected"],
     default: "pending",
   },
+  isEligible: {
+    type: Boolean,
+    required: true,
+    default: false,
+  },
+  eligibilityReason: {
+    type: String,
+    required: true,
+    default: "Pending eligibility check",
+  },
   createdAt: {
     type: Date,
     default: Date.now,

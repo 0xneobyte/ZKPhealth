@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const InsuranceClaim = require("../models/InsuranceClaim");
 const ZKRollup = require("../utils/rollup");
 const Patient = require("../models/Patient");
+const { checkEligibility } = require("../utils/eligibilityChecker");
 
 // Get all claims
 router.get("/claims", async (req, res) => {
@@ -106,34 +107,36 @@ router.post("/verify-eligibility", async (req, res) => {
 router.post("/submit-claim", async (req, res) => {
   try {
     const claimData = req.body;
-    console.log("Received claim data:", claimData);
+    console.log("Processing new claim:", claimData);
 
-    // Create new claim
-    const claim = await InsuranceClaim.create({
-      patientId: claimData.patientId,
-      doctorAddress: claimData.doctorAddress,
-      policyNumber: claimData.policyNumber,
-      insuranceProvider: claimData.insuranceProvider,
-      claimType: claimData.claimType,
-      admissionDate: claimData.admissionDate,
-      dischargeDate: claimData.dischargeDate,
-      diagnosis: claimData.diagnosis,
-      treatmentCost: claimData.treatmentCost,
-      roomCharges: claimData.roomCharges,
-      medicationCharges: claimData.medicationCharges,
-      consultationFees: claimData.consultationFees,
-      labTestCharges: claimData.labTestCharges,
-      totalCost: claimData.totalCost,
+    // Check eligibility
+    const eligibilityResult = checkEligibility(claimData);
+    console.log("Eligibility check result:", eligibilityResult);
+
+    // Create claim with eligibility result
+    const newClaim = {
+      ...claimData,
       status: "pending",
+      isEligible: eligibilityResult.isEligible,
+      eligibilityReason: eligibilityResult.reason,
+    };
+
+    console.log("About to save claim with data:", newClaim);
+    const claim = await InsuranceClaim.create(newClaim);
+    console.log("Saved claim:", claim);
+
+    console.log("Eligibility check complete:", {
+      isEligible: eligibilityResult.isEligible,
+      reason: eligibilityResult.reason,
     });
 
     res.json({
       success: true,
-      message: "Claim submitted successfully",
+      message: `Claim submitted successfully. ${eligibilityResult.reason}`,
       claim,
     });
   } catch (error) {
-    console.error("Error submitting claim:", error);
+    console.error("Claim submission error:", error);
     res.status(500).json({
       success: false,
       message: error.message,

@@ -200,6 +200,22 @@ const Dashboard = () => {
         Number(formData.consultationFees) +
         Number(formData.labTestCharges);
 
+      // Format dates properly
+      const formattedData = {
+        ...formData,
+        admissionDate: new Date(formData.admissionDate)
+          .toISOString()
+          .split("T")[0],
+        dischargeDate: new Date(formData.dischargeDate)
+          .toISOString()
+          .split("T")[0],
+        doctorAddress: user.address,
+        totalCost,
+        claimDate: new Date().toISOString(),
+      };
+
+      console.log("Formatted claim data:", formattedData);
+
       const response = await fetch(
         `${process.env.REACT_APP_API_URL}/insurance/submit-claim`,
         {
@@ -207,12 +223,7 @@ const Dashboard = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            ...formData,
-            doctorAddress: user.address,
-            totalCost,
-            claimDate: new Date().toISOString(),
-          }),
+          body: JSON.stringify(formattedData),
         }
       );
 
@@ -221,6 +232,7 @@ const Dashboard = () => {
       }
 
       const data = await response.json();
+      console.log("Claim submission response:", data);
       setClaimStatus(data.message);
 
       // Clear form
