@@ -12,6 +12,8 @@ import {
   TextField,
   Paper,
   CircularProgress,
+  Grid,
+  MenuItem,
 } from "@mui/material";
 import { useAuth } from "../../contexts/AuthContext";
 import PatientForm from "../patients/PatientForm";
@@ -37,6 +39,29 @@ const Dashboard = () => {
   const [patientId, setPatientId] = useState("");
   const [bloodPressure, setBloodPressure] = useState("");
   const [claimStatus, setClaimStatus] = useState("");
+  const [policyNumber, setPolicyNumber] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
+  const [treatmentCost, setTreatmentCost] = useState("");
+  const [formData, setFormData] = useState({
+    patientId: "",
+    patientName: "",
+    dateOfBirth: "",
+    gender: "",
+    contactNumber: "",
+    policyNumber: "",
+    insuranceProvider: "",
+    hospitalName: "ZKP General Hospital",
+    hospitalId: "ZKP123",
+    claimType: "",
+    admissionDate: "",
+    dischargeDate: "",
+    diagnosis: "",
+    treatmentCost: "",
+    roomCharges: "",
+    medicationCharges: "",
+    consultationFees: "",
+    labTestCharges: "",
+  });
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -168,18 +193,25 @@ const Dashboard = () => {
   const submitClaim = async (e) => {
     e.preventDefault();
     try {
+      const totalCost =
+        Number(formData.treatmentCost) +
+        Number(formData.roomCharges) +
+        Number(formData.medicationCharges) +
+        Number(formData.consultationFees) +
+        Number(formData.labTestCharges);
+
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL}/insurance/verify-eligibility`,
+        `${process.env.REACT_APP_API_URL}/insurance/submit-claim`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            patientId,
+            ...formData,
             doctorAddress: user.address,
-            insuranceAddress: "0x3935cb7ed81d896ebd77f4c3bf03587963b6c4f8", // Your insurance provider address
-            bloodPressure,
+            totalCost,
+            claimDate: new Date().toISOString(),
           }),
         }
       );
@@ -188,8 +220,24 @@ const Dashboard = () => {
       setClaimStatus(data.message);
 
       // Clear form
-      setPatientId("");
-      setBloodPressure("");
+      setFormData({
+        patientId: "",
+        patientName: "",
+        dateOfBirth: "",
+        gender: "",
+        contactNumber: "",
+        policyNumber: "",
+        insuranceProvider: "",
+        claimType: "",
+        admissionDate: "",
+        dischargeDate: "",
+        diagnosis: "",
+        treatmentCost: "",
+        roomCharges: "",
+        medicationCharges: "",
+        consultationFees: "",
+        labTestCharges: "",
+      });
     } catch (error) {
       setClaimStatus("Error submitting claim");
       console.error("Error:", error);
@@ -215,6 +263,7 @@ const Dashboard = () => {
           <Tab label="Profile" />
           <Tab label="Register Patient" />
           <Tab label="Search Patient" />
+          <Tab label="Submit Claim" />
         </Tabs>
 
         {tabValue === 0 ? (
@@ -237,8 +286,330 @@ const Dashboard = () => {
           </Box>
         ) : tabValue === 1 ? (
           <PatientForm />
-        ) : (
+        ) : tabValue === 2 ? (
           <PatientSearch />
+        ) : (
+          <Box sx={{ maxWidth: 800, mx: "auto", p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Submit Insurance Claim
+            </Typography>
+            <Paper sx={{ p: 3 }}>
+              <form onSubmit={submitClaim}>
+                <Grid container spacing={3}>
+                  <Grid item xs={12}>
+                    <Typography
+                      variant="subtitle1"
+                      gutterBottom
+                      sx={{ fontWeight: "bold" }}
+                    >
+                      Patient Information
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Patient ID"
+                      name="patientId"
+                      value={formData.patientId}
+                      onChange={(e) =>
+                        setFormData({ ...formData, patientId: e.target.value })
+                      }
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Patient Name"
+                      name="patientName"
+                      value={formData.patientName}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          patientName: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Date of Birth"
+                      name="dateOfBirth"
+                      type="date"
+                      value={formData.dateOfBirth}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          dateOfBirth: e.target.value,
+                        })
+                      }
+                      InputLabelProps={{ shrink: true }}
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      select
+                      fullWidth
+                      label="Gender"
+                      name="gender"
+                      value={formData.gender}
+                      onChange={(e) =>
+                        setFormData({ ...formData, gender: e.target.value })
+                      }
+                      required
+                    >
+                      <MenuItem value="male">Male</MenuItem>
+                      <MenuItem value="female">Female</MenuItem>
+                      <MenuItem value="other">Other</MenuItem>
+                    </TextField>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Contact Number"
+                      name="contactNumber"
+                      value={formData.contactNumber}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          contactNumber: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Typography
+                      variant="subtitle1"
+                      gutterBottom
+                      sx={{ fontWeight: "bold", mt: 2 }}
+                    >
+                      Insurance Information
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Policy Number"
+                      name="policyNumber"
+                      value={formData.policyNumber}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          policyNumber: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Insurance Provider"
+                      name="insuranceProvider"
+                      value={formData.insuranceProvider}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          insuranceProvider: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      select
+                      fullWidth
+                      label="Claim Type"
+                      name="claimType"
+                      value={formData.claimType}
+                      onChange={(e) =>
+                        setFormData({ ...formData, claimType: e.target.value })
+                      }
+                      required
+                    >
+                      <MenuItem value="inpatient">Inpatient</MenuItem>
+                      <MenuItem value="outpatient">Outpatient</MenuItem>
+                      <MenuItem value="daycare">Daycare</MenuItem>
+                    </TextField>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Typography
+                      variant="subtitle1"
+                      gutterBottom
+                      sx={{ fontWeight: "bold", mt: 2 }}
+                    >
+                      Treatment Information
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Admission Date"
+                      name="admissionDate"
+                      type="date"
+                      value={formData.admissionDate}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          admissionDate: e.target.value,
+                        })
+                      }
+                      InputLabelProps={{ shrink: true }}
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Discharge Date"
+                      name="dischargeDate"
+                      type="date"
+                      value={formData.dischargeDate}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          dischargeDate: e.target.value,
+                        })
+                      }
+                      InputLabelProps={{ shrink: true }}
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Diagnosis"
+                      name="diagnosis"
+                      multiline
+                      rows={2}
+                      value={formData.diagnosis}
+                      onChange={(e) =>
+                        setFormData({ ...formData, diagnosis: e.target.value })
+                      }
+                      required
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Typography
+                      variant="subtitle1"
+                      gutterBottom
+                      sx={{ fontWeight: "bold", mt: 2 }}
+                    >
+                      Cost Breakdown
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Treatment Cost"
+                      name="treatmentCost"
+                      type="number"
+                      value={formData.treatmentCost}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          treatmentCost: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Room Charges"
+                      name="roomCharges"
+                      type="number"
+                      value={formData.roomCharges}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          roomCharges: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Medication Charges"
+                      name="medicationCharges"
+                      type="number"
+                      value={formData.medicationCharges}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          medicationCharges: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Consultation Fees"
+                      name="consultationFees"
+                      type="number"
+                      value={formData.consultationFees}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          consultationFees: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Lab Test Charges"
+                      name="labTestCharges"
+                      type="number"
+                      value={formData.labTestCharges}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          labTestCharges: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      color="primary"
+                      fullWidth
+                      size="large"
+                    >
+                      Submit Claim
+                    </Button>
+                  </Grid>
+                </Grid>
+              </form>
+              {claimStatus && (
+                <Alert
+                  severity={claimStatus.includes("Error") ? "error" : "success"}
+                  sx={{ mt: 2 }}
+                >
+                  {claimStatus}
+                </Alert>
+              )}
+            </Paper>
+          </Box>
         )}
       </Box>
     );
