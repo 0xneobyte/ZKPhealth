@@ -23,8 +23,10 @@ const PatientForm = () => {
   const [formData, setFormData] = useState({
     patientId: "",
     patientName: "",
+    dateOfBirth: "",
     age: "",
     gender: "",
+    contactNumber: "",
     clinicalDescription: "",
     disease: "",
   });
@@ -98,6 +100,8 @@ const PatientForm = () => {
           formData.gender,
           formData.clinicalDescription,
           formData.disease,
+          formData.dateOfBirth,
+          formData.contactNumber,
           { gasLimit: 300000 }
         );
 
@@ -112,8 +116,10 @@ const PatientForm = () => {
       setFormData({
         patientId: "",
         patientName: "",
+        dateOfBirth: "",
         age: "",
         gender: "",
+        contactNumber: "",
         clinicalDescription: "",
         disease: "",
       });
@@ -181,6 +187,18 @@ const PatientForm = () => {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
+                  label="Date of Birth"
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth}
+                  onChange={handleChange}
+                  InputLabelProps={{ shrink: true }}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
                   label="Age"
                   name="age"
                   type="number"
@@ -202,6 +220,16 @@ const PatientForm = () => {
                     <MenuItem value="other">Other</MenuItem>
                   </Select>
                 </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Contact Number"
+                  name="contactNumber"
+                  value={formData.contactNumber}
+                  onChange={handleChange}
+                  required
+                />
               </Grid>
               <Grid item xs={12}>
                 <TextField

@@ -216,6 +216,10 @@ const Dashboard = () => {
         }
       );
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
       setClaimStatus(data.message);
 
@@ -228,6 +232,8 @@ const Dashboard = () => {
         contactNumber: "",
         policyNumber: "",
         insuranceProvider: "",
+        hospitalName: "ZKP General Hospital",
+        hospitalId: "ZKP123",
         claimType: "",
         admissionDate: "",
         dischargeDate: "",
@@ -241,6 +247,32 @@ const Dashboard = () => {
     } catch (error) {
       setClaimStatus("Error submitting claim");
       console.error("Error:", error);
+    }
+  };
+
+  const fetchPatientDetails = async (id) => {
+    try {
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL}/patients/${id}`
+      );
+      if (!response.ok) {
+        throw new Error("Patient not found");
+      }
+      const patient = await response.json();
+
+      // Update form with patient details
+      setFormData((prev) => ({
+        ...prev,
+        patientId: id,
+        patientName: patient.patientName,
+        dateOfBirth: patient.dateOfBirth,
+        gender: patient.gender,
+        contactNumber: patient.contactNumber || "", // In case these fields don't exist
+      }));
+    } catch (error) {
+      console.error("Error fetching patient details:", error);
+      // Optionally show an error message
+      setClaimStatus("Error: Patient not found");
     }
   };
 
@@ -311,9 +343,14 @@ const Dashboard = () => {
                       label="Patient ID"
                       name="patientId"
                       value={formData.patientId}
-                      onChange={(e) =>
-                        setFormData({ ...formData, patientId: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const newId = e.target.value;
+                        setFormData({ ...formData, patientId: newId });
+                        if (newId.length > 0) {
+                          // Or any other condition that indicates a complete ID
+                          fetchPatientDetails(newId);
+                        }
+                      }}
                       required
                     />
                   </Grid>
@@ -323,12 +360,9 @@ const Dashboard = () => {
                       label="Patient Name"
                       name="patientName"
                       value={formData.patientName}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          patientName: e.target.value,
-                        })
-                      }
+                      InputProps={{
+                        readOnly: true,
+                      }}
                       required
                     />
                   </Grid>
@@ -339,12 +373,9 @@ const Dashboard = () => {
                       name="dateOfBirth"
                       type="date"
                       value={formData.dateOfBirth}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          dateOfBirth: e.target.value,
-                        })
-                      }
+                      InputProps={{
+                        readOnly: true,
+                      }}
                       InputLabelProps={{ shrink: true }}
                       required
                     />
@@ -356,9 +387,9 @@ const Dashboard = () => {
                       label="Gender"
                       name="gender"
                       value={formData.gender}
-                      onChange={(e) =>
-                        setFormData({ ...formData, gender: e.target.value })
-                      }
+                      InputProps={{
+                        readOnly: true,
+                      }}
                       required
                     >
                       <MenuItem value="male">Male</MenuItem>
@@ -372,12 +403,9 @@ const Dashboard = () => {
                       label="Contact Number"
                       name="contactNumber"
                       value={formData.contactNumber}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          contactNumber: e.target.value,
-                        })
-                      }
+                      InputProps={{
+                        readOnly: true,
+                      }}
                       required
                     />
                   </Grid>
