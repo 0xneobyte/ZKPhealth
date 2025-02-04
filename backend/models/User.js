@@ -1,23 +1,25 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const userSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema(
+  {
     walletAddress: {
-        type: String,
-        required: true,
-        unique: true,
-        lowercase: true
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
     },
     role: {
-        type: String,
-        enum: ['admin', 'doctor', 'insurance', 'patient'],
-        required: true
+      type: String,
+      enum: ["admin", "doctor", "insurance", "patient"],
+      required: true,
     },
     is2FAEnabled: {
-        type: Boolean,
-        default: false
+      type: Boolean,
+      default: false,
     },
     twoFactorSecret: String,
-    tempSecret: String
-});
+  },
+  { timestamps: true }
+);
 
-module.exports = mongoose.model('User', userSchema); 
+module.exports = mongoose.model("User", userSchema);
