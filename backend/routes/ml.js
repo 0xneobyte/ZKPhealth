@@ -539,4 +539,87 @@ setTimeout(async () => {
   }
 }, 5000); // Wait 5 seconds after server start
 
+// Get recent traffic data
+router.get("/traffic/recent", (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const packets = (global.packetLogs || []).slice(-limit);
+
+    res.json(packets);
+  } catch (error) {
+    console.error("Error getting traffic data:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get traffic statistics
+router.get("/traffic/stats", (req, res) => {
+  try {
+    const packets = global.packetLogs || [];
+
+    // Calculate request rate (requests per minute)
+    const now = Date.now();
+    const oneMinuteAgo = now - 60000;
+    const recentPackets = packets.filter(
+      (p) => new Date(p.timestamp).getTime() > oneMinuteAgo
+    );
+    const requestRate = recentPackets.length;
+
+    // Count requests by method
+    const methodCounts = {};
+    packets.forEach((p) => {
+      methodCounts[p.method] = (methodCounts[p.method] || 0) + 1;
+    });
+
+    // Count requests by path
+    const pathCounts = {};
+    packets.forEach((p) => {
+      pathCounts[p.path] = (pathCounts[p.path] || 0) + 1;
+    });
+
+    // Count requests by status code
+    const statusCounts = {};
+    packets.forEach((p) => {
+      if (p.status_code) {
+        statusCounts[p.status_code] = (statusCounts[p.status_code] || 0) + 1;
+      }
+    });
+
+    // Count requests by IP
+    const ipCounts = {};
+    packets.forEach((p) => {
+      ipCounts[p.src_ip] = (ipCounts[p.src_ip] || 0) + 1;
+    });
+
+    // Get top IPs
+    const topIPs = Object.entries(ipCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([ip, count]) => ({ ip, count }));
+
+    // Get top paths
+    const topPaths = Object.entries(pathCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([path, count]) => ({ path, count }));
+
+    res.json({
+      total_requests: packets.length,
+      recent_requests: recentPackets.length,
+      request_rate: requestRate,
+      method_distribution: methodCounts,
+      status_distribution: statusCounts,
+      top_ips: topIPs,
+      top_paths: topPaths,
+    });
+  } catch (error) {
+    console.error("Error getting traffic stats:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Export securityAlerts for middleware access
 module.exports = router;
+module.exports.securityAlerts = securityAlerts;
+module.exports.xssCache = xssCache;
+module.exports.ddosCache = ddosCache;

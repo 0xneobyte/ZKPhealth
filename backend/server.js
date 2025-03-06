@@ -19,6 +19,10 @@ const searchRoutes = require("./routes/search");
 // Import middleware
 const xssDetectionMiddleware = require("./middleware/xssDetection");
 
+// Import security middleware
+const trafficMonitor = require("./middleware/trafficMonitor");
+const xssDetector = require("./middleware/xssDetector");
+
 dotenv.config();
 
 const app = express();
@@ -56,6 +60,10 @@ app.use((req, res, next) => {
 
 // XSS detection middleware
 app.use(xssDetectionMiddleware);
+
+// Add security middleware
+app.use(trafficMonitor);
+app.use(xssDetector);
 
 // Add health check endpoint
 app.get("/health", (req, res) => {
