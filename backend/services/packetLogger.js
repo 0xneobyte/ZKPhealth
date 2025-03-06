@@ -8,8 +8,8 @@ const ML_DIR = path.join(__dirname, "../../ML Models");
 const SCRIPTS_DIR = path.join(ML_DIR, "scripts");
 const PACKET_LOGGER_SCRIPT = path.join(SCRIPTS_DIR, "packet_logger.py");
 
-// Port for the packet logger
-const PACKET_LOGGER_PORT = 8000;
+// Default port for the packet logger
+let PACKET_LOGGER_PORT = 8000;
 
 // Check if the packet logger script exists
 const scriptExists = fs.existsSync(PACKET_LOGGER_SCRIPT);
@@ -24,30 +24,28 @@ let packetLoggerProcess = null;
 const isPacketLoggerRunning = async () => {
   try {
     // Try to make a request to the packet logger API
-    return new Promise((resolve) => {
-      const req = http.get(
-        `http://localhost:${PACKET_LOGGER_PORT}/api/packets?limit=1`,
-        (res) => {
-          // If we get a 200 response, the packet logger is running
-          resolve(res.statusCode === 200);
+    const url = `http://localhost:${PACKET_LOGGER_PORT}/api/packets?limit=1`;
 
-          // Consume the response data to free up memory
-          res.resume();
+    return new Promise((resolve) => {
+      const req = http.get(url, (res) => {
+        if (res.statusCode === 200) {
+          resolve(true);
+        } else {
+          resolve(false);
         }
-      );
+      });
 
       req.on("error", () => {
-        // If we get an error, the packet logger is not running
         resolve(false);
       });
 
-      // Set a timeout in case the request hangs
       req.setTimeout(1000, () => {
         req.abort();
         resolve(false);
       });
     });
   } catch (error) {
+    console.error("Error checking if packet logger is running:", error);
     return false;
   }
 };
@@ -68,95 +66,90 @@ const startPacketLogger = async () => {
     // First check if the packet logger is already running
     const isRunning = await isPacketLoggerRunning();
     if (isRunning) {
-      console.log(
-        `Packet logger is already running on port ${PACKET_LOGGER_PORT}`
-      );
+      console.log("Packet logger is already running");
       return true;
     }
 
-    // Check if the port is in use by something else
-    const portInUse = await isPortInUse(PACKET_LOGGER_PORT);
-    if (portInUse) {
-      console.error(
-        `Port ${PACKET_LOGGER_PORT} is already in use by another application`
-      );
-      return false;
-    }
-
-    // Start the packet logger
     console.log("Starting packet logger...");
 
-    return new Promise((resolve) => {
-      try {
-        packetLoggerProcess = spawn("python3", [PACKET_LOGGER_SCRIPT], {
-          cwd: SCRIPTS_DIR,
-          detached: true,
-          stdio: "pipe", // Capture output
-        });
+    // Start the packet logger process
+    const pythonProcess = spawn("python", [PACKET_LOGGER_SCRIPT]);
 
-        // Log stdout
-        packetLoggerProcess.stdout.on("data", (data) => {
-          console.log(`Packet Logger: ${data.toString().trim()}`);
-        });
+    return new Promise((resolve, reject) => {
+      let dataString = "";
+      let errorString = "";
+      let portFound = false;
 
-        // Log stderr - these are often just HTTP request logs, not actual errors
-        packetLoggerProcess.stderr.on("data", (data) => {
-          const errorText = data.toString().trim();
+      pythonProcess.stdout.on("data", (data) => {
+        const output = data.toString().trim();
+        dataString += output;
 
-          // Check if this is an "Address already in use" error
-          if (errorText.includes("Address already in use")) {
+        // Check if the output is a port number
+        const port = parseInt(output);
+        if (!isNaN(port) && port > 0) {
+          PACKET_LOGGER_PORT = port;
+          console.log(`Packet logger using port ${port}`);
+          portFound = true;
+        }
+      });
+
+      pythonProcess.stderr.on("data", (data) => {
+        console.log(`Packet Logger: ${data.toString()}`);
+        errorString += data.toString();
+      });
+
+      pythonProcess.on("close", (code) => {
+        console.log(`Packet logger exited with code ${code}`);
+
+        if (code !== 0) {
+          if (errorString.includes("port is already in use")) {
             console.log(
               "Packet logger port is already in use, checking if it's the packet logger..."
             );
 
-            // Check if it's our packet logger that's using the port
-            isPacketLoggerRunning().then((isRunning) => {
-              if (isRunning) {
-                console.log("Packet logger is already running on this port");
-                resolve(true);
-              } else {
-                console.error("Port is in use by another application");
+            // Check if the packet logger is running on the default port
+            isPacketLoggerRunning()
+              .then((isRunning) => {
+                if (isRunning) {
+                  console.log(
+                    "Packet logger is already running on the default port"
+                  );
+                  resolve(true);
+                } else {
+                  console.log("Port is in use by another application");
+                  resolve(false);
+                }
+              })
+              .catch(() => {
+                console.log("Failed to check if packet logger is running");
                 resolve(false);
-              }
-            });
+              });
           } else {
-            // Just log as info, not as error
-            console.log(`Packet Logger: ${errorText}`);
-          }
-        });
-
-        // Handle process exit
-        packetLoggerProcess.on("close", (code) => {
-          if (code !== 0) {
-            console.error(`Packet logger exited with code ${code}`);
-            packetLoggerProcess = null;
-            resolve(false);
-          } else {
-            console.log("Packet logger stopped");
-            packetLoggerProcess = null;
-          }
-        });
-
-        // Wait a bit to make sure it starts
-        setTimeout(async () => {
-          const running = await isPacketLoggerRunning();
-          if (running) {
-            console.log(
-              `Packet logger started successfully on port ${PACKET_LOGGER_PORT}`
-            );
-            resolve(true);
-          } else {
-            console.error("Packet logger failed to start");
+            console.log("Packet logger failed to start");
             resolve(false);
           }
-        }, 2000);
-      } catch (error) {
-        console.error("Error starting packet logger:", error);
-        resolve(false);
-      }
+        } else if (portFound) {
+          // Wait a bit for the server to start
+          setTimeout(async () => {
+            const isRunning = await isPacketLoggerRunning();
+            if (isRunning) {
+              console.log(
+                `Packet logger started successfully on port ${PACKET_LOGGER_PORT}`
+              );
+              resolve(true);
+            } else {
+              console.log("Packet logger started but is not responding");
+              resolve(false);
+            }
+          }, 1000);
+        } else {
+          console.log("Packet logger started but no port was found");
+          resolve(false);
+        }
+      });
     });
   } catch (error) {
-    console.error("Error in startPacketLogger:", error);
+    console.error("Error starting packet logger:", error);
     return false;
   }
 };
@@ -165,18 +158,56 @@ const startPacketLogger = async () => {
  * Stop the packet logger
  */
 const stopPacketLogger = () => {
-  if (packetLoggerProcess) {
-    console.log("Stopping packet logger...");
+  return new Promise((resolve, reject) => {
+    // Find the packet logger process
+    const findProcess = spawn("ps", ["aux"]);
 
-    // Kill the process group
-    try {
-      process.kill(-packetLoggerProcess.pid, "SIGINT");
-    } catch (error) {
-      console.error("Error stopping packet logger:", error);
-    }
+    let output = "";
 
-    packetLoggerProcess = null;
-  }
+    findProcess.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    findProcess.on("close", (code) => {
+      if (code !== 0) {
+        console.error("Failed to find packet logger process");
+        resolve(false);
+        return;
+      }
+
+      // Find the Python process running the packet logger
+      const lines = output.split("\n");
+      const packetLoggerProcesses = lines.filter(
+        (line) => line.includes("python") && line.includes("packet_logger.py")
+      );
+
+      if (packetLoggerProcesses.length === 0) {
+        console.log("No packet logger process found");
+        resolve(true);
+        return;
+      }
+
+      // Kill each packet logger process
+      let processesKilled = 0;
+
+      packetLoggerProcesses.forEach((processLine) => {
+        const pid = processLine.trim().split(/\s+/)[1];
+
+        if (pid) {
+          const killProcess = spawn("kill", [pid]);
+
+          killProcess.on("close", (killCode) => {
+            processesKilled++;
+
+            if (processesKilled === packetLoggerProcesses.length) {
+              console.log("Packet logger stopped");
+              resolve(true);
+            }
+          });
+        }
+      });
+    });
+  });
 };
 
 /**
@@ -272,5 +303,7 @@ module.exports = {
   stopPacketLogger,
   simulateDoSAttack,
   isPacketLoggerRunning,
-  PACKET_LOGGER_PORT,
+  get PACKET_LOGGER_PORT() {
+    return PACKET_LOGGER_PORT;
+  },
 };

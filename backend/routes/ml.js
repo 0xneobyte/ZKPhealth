@@ -243,6 +243,22 @@ router.post("/xss/analyze", async (req, res) => {
       xssCache.stats.recentTimestamps.push(new Date().toISOString());
       xssCache.stats.recentTimestamps =
         xssCache.stats.recentTimestamps.slice(-100);
+
+      // Save the detection for real statistics
+      try {
+        // Add timestamp if not present
+        if (!result.timestamp) {
+          result.timestamp = new Date().toISOString();
+        }
+
+        // Run the script to save the detection
+        await runPythonScript("xss_save_detection.py", [
+          JSON.stringify(result),
+        ]);
+        console.log("Saved XSS detection for statistics");
+      } catch (saveError) {
+        console.error("Error saving XSS detection:", saveError);
+      }
     }
 
     res.json(result);
@@ -439,6 +455,25 @@ router.post("/simulate-dos", async (req, res) => {
 
       // Force refresh of the DDoS stats
       ddosCache.lastUpdated = null;
+
+      // Save the detection for real statistics
+      try {
+        const detection = {
+          timestamp: new Date().toISOString(),
+          attack_type: "syn_flood",
+          source_ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(
+            Math.random() * 255
+          )}`,
+          target: "HTTP (80)",
+        };
+
+        // Run the script to save the detection
+        runPythonScript("ddos_save_detection.py", [JSON.stringify(detection)])
+          .then(() => console.log("Saved DoS detection for statistics"))
+          .catch((err) => console.error("Error saving DoS detection:", err));
+      } catch (saveError) {
+        console.error("Error saving DoS detection:", saveError);
+      }
     }, Math.min(duration * 500, 5000)); // Half the duration (in ms), max 5 seconds
 
     res.json({

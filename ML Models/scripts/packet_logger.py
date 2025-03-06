@@ -4,6 +4,7 @@ import json
 import time
 import random
 import datetime
+import sys
 from collections import deque
 import threading
 import socket
@@ -51,60 +52,46 @@ def generate_mock_packet():
     # Generate packet size
     size = random.randint(64, 1500)
     
-    # Generate flags for TCP
+    # Generate TCP flags (if TCP)
     flags = ""
     if protocol == 6:  # TCP
         flag_options = ["S", "A", "F", "R", "P", "U"]
         num_flags = random.randint(1, 3)
         flags = "".join(random.sample(flag_options, num_flags))
     
-    # Create packet data
+    # Generate timestamp
+    timestamp = datetime.datetime.now().isoformat()
+    
+    # Create packet object
     packet = {
-        "timestamp": datetime.datetime.now().isoformat(),
+        "timestamp": timestamp,
+        "protocol": protocol_name,
         "src_ip": src_ip,
         "dst_ip": dst_ip,
-        "protocol": protocol_name,
         "size": size,
         "ttl": random.randint(32, 128)
     }
     
-    if src_port:
+    # Add protocol-specific fields
+    if protocol in [6, 17]:  # TCP or UDP
         packet["src_port"] = src_port
-    if dst_port:
         packet["dst_port"] = dst_port
-    if flags:
-        packet["flags"] = flags
     
-    # Add some HTTP data occasionally for TCP packets to port 80/443
-    if protocol == 6 and dst_port in [80, 443] and random.random() < 0.3:
-        methods = ["GET", "POST", "PUT", "DELETE"]
-        paths = ["/", "/login", "/admin", "/api/data", "/users", "/dashboard"]
-        packet["http_method"] = random.choice(methods)
-        packet["http_path"] = random.choice(paths)
-        
-        # Sometimes add suspicious payloads
-        if random.random() < 0.1:
-            suspicious_payloads = [
-                "<script>alert('XSS')</script>",
-                "' OR 1=1 --",
-                "../../../etc/passwd",
-                "() { :; }; echo vulnerable"
-            ]
-            packet["payload"] = random.choice(suspicious_payloads)
+    if protocol == 6:  # TCP
+        packet["flags"] = flags
     
     return packet
 
-# Function to simulate packet capture
 def capture_packets():
-    """Simulate packet capture"""
+    """Capture network packets (simulation)"""
     while running:
-        # In a real implementation, this would process actual packets from Scapy
+        # In a real implementation, this would capture actual packets
         # For simulation, we'll generate random packets
         packet = generate_mock_packet()
         packet_logs.append(packet)
         
-        # Sleep for a random time between 0.1 and 1 second
-        time.sleep(random.uniform(0.1, 1.0))
+        # Sleep for a random time to simulate varying packet rates
+        time.sleep(random.uniform(0.1, 0.5))
 
 # HTTP request handler for the packet log API
 class PacketLogHandler(http.server.SimpleHTTPRequestHandler):
@@ -161,19 +148,19 @@ def set_dos_simulation_flag(target_ip):
     """Create a flag file to indicate a DoS simulation is in progress"""
     with open(DOS_SIMULATION_FLAG_FILE, 'w') as f:
         f.write(target_ip)
-    print(f"DoS simulation flag set for target: {target_ip}")
+    sys.stderr.write(f"DoS simulation flag set for target: {target_ip}\n")
 
 # Function to clear the DoS simulation flag
 def clear_dos_simulation_flag():
     """Remove the flag file when simulation is complete"""
     if os.path.exists(DOS_SIMULATION_FLAG_FILE):
         os.remove(DOS_SIMULATION_FLAG_FILE)
-        print("DoS simulation flag cleared")
+        sys.stderr.write("DoS simulation flag cleared\n")
 
 # Function to simulate a DoS attack
 def simulate_dos_attack(target_ip, duration):
     """Simulate a DoS attack by generating a high volume of packets to the target"""
-    print(f"Simulating DoS attack on {target_ip} for {duration} seconds")
+    sys.stderr.write(f"Simulating DoS attack on {target_ip} for {duration} seconds\n")
     
     # Set the simulation flag
     set_dos_simulation_flag(target_ip)
@@ -204,7 +191,25 @@ def simulate_dos_attack(target_ip, duration):
     finally:
         # Always clear the flag when done, even if there's an error
         clear_dos_simulation_flag()
-        print(f"DoS attack simulation completed")
+        sys.stderr.write(f"DoS attack simulation completed\n")
+
+# Function to check if a port is available
+def is_port_available(port):
+    """Check if a port is available for use"""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("", port))
+            return True
+    except OSError:
+        return False
+
+# Function to find an available port
+def find_available_port(start_port, max_attempts=10):
+    """Find an available port starting from start_port"""
+    for port in range(start_port, start_port + max_attempts):
+        if is_port_available(port):
+            return port
+    return None
 
 if __name__ == "__main__":
     # Start packet capture in a separate thread
@@ -213,14 +218,26 @@ if __name__ == "__main__":
     capture_thread.start()
     
     # Start HTTP server for the API
-    PORT = 8000
+    DEFAULT_PORT = 8000
+    
+    # Try to find an available port
+    PORT = find_available_port(DEFAULT_PORT, 20)
+    
+    if PORT is None:
+        sys.stderr.write(f"Could not find an available port after trying {DEFAULT_PORT} through {DEFAULT_PORT + 19}\n")
+        sys.exit(1)
     
     try:
         with socketserver.TCPServer(("", PORT), PacketLogHandler) as httpd:
-            print(f"Packet logger API running at http://localhost:{PORT}")
-            print(f"View packets: http://localhost:{PORT}/api/packets")
-            print(f"Simulate DoS: http://localhost:{PORT}/api/simulate-dos?target=192.168.1.1&duration=10")
+            sys.stderr.write(f"Packet logger API running at http://localhost:{PORT}\n")
+            sys.stderr.write(f"View packets: http://localhost:{PORT}/api/packets\n")
+            sys.stderr.write(f"Simulate DoS: http://localhost:{PORT}/api/simulate-dos?target=192.168.1.1&duration=10\n")
+            
+            # Print the port to stdout for the parent process to capture
+            print(PORT)
+            sys.stdout.flush()
+            
             httpd.serve_forever()
     except KeyboardInterrupt:
-        print("Shutting down packet logger")
+        sys.stderr.write("Shutting down packet logger\n")
         running = False 

@@ -1,0 +1,1 @@
+{"totalDetections": 1, "byType": {"reflected": 1, "stored": 0, "dom": 0}, "topSources": [{"ip": "192.168.1.95", "count": 1}], "topTargets": [{"endpoint": "/dashboard", "count": 1}], "recentTimestamps": ["2025-03-06T10:53:11.546Z"], "hourlyTrend": [{"hour": "2025-03-06 16:00", "count": 1}]}

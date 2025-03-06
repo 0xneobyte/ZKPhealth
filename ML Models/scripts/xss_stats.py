@@ -3,6 +3,9 @@ import json
 import os
 import random
 import datetime
+import pickle
+import numpy as np
+import sys
 from collections import Counter
 
 # Path to the ML Models directory
@@ -10,10 +13,24 @@ ML_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ML_DIR, 'data')
 ARTIFACTS_DIR = os.path.join(ML_DIR, 'artifacts')
 
-# Function to generate mock XSS statistics
+# File to store XSS detection results
+XSS_RESULTS_FILE = os.path.join(ML_DIR, 'scripts', '.xss_detection_results.json')
+
+# Function to generate XSS statistics
 def generate_xss_stats():
-    # In a real implementation, this would load the actual model and analyze logs
-    # For now, we'll generate mock data
+    # Try to load real detection results if available
+    if os.path.exists(XSS_RESULTS_FILE):
+        try:
+            with open(XSS_RESULTS_FILE, 'r') as f:
+                results = json.load(f)
+                sys.stderr.write("Loaded real XSS detection results\n")
+                return results
+        except Exception as e:
+            sys.stderr.write(f"Error loading XSS detection results: {e}\n")
+            sys.stderr.write("Falling back to simulated data\n")
+    
+    # If no real data is available, generate simulated data
+    sys.stderr.write("Generating simulated XSS statistics\n")
     
     # Total detections (random number between 50-150)
     total_detections = random.randint(50, 150)
@@ -89,6 +106,103 @@ def generate_xss_stats():
         "hourlyTrend": hourly_counts
     }
 
+# Function to save XSS detection results
+def save_xss_detection(detection):
+    """Save a new XSS detection to the results file"""
+    results = {
+        "totalDetections": 0,
+        "byType": {
+            "reflected": 0,
+            "stored": 0,
+            "dom": 0
+        },
+        "topSources": [],
+        "topTargets": [],
+        "recentTimestamps": [],
+        "hourlyTrend": []
+    }
+    
+    # Load existing results if available
+    if os.path.exists(XSS_RESULTS_FILE):
+        try:
+            with open(XSS_RESULTS_FILE, 'r') as f:
+                results = json.load(f)
+        except:
+            pass
+    
+    # Update results with new detection
+    results["totalDetections"] += 1
+    
+    # Update attack type counts
+    if detection.get("attack_type") in results["byType"]:
+        results["byType"][detection["attack_type"]] += 1
+    
+    # Add timestamp
+    results["recentTimestamps"].append(detection.get("timestamp", datetime.datetime.now().isoformat()))
+    results["recentTimestamps"] = sorted(results["recentTimestamps"], reverse=True)[:100]
+    
+    # Update source IPs
+    source_ip = detection.get("source_ip")
+    if source_ip:
+        # Find if this IP is already in the list
+        found = False
+        for source in results["topSources"]:
+            if source["ip"] == source_ip:
+                source["count"] += 1
+                found = True
+                break
+        
+        if not found:
+            results["topSources"].append({"ip": source_ip, "count": 1})
+        
+        # Sort by count and keep top 5
+        results["topSources"] = sorted(results["topSources"], key=lambda x: x["count"], reverse=True)[:5]
+    
+    # Update target endpoints
+    target_endpoint = detection.get("target_endpoint")
+    if target_endpoint:
+        # Find if this endpoint is already in the list
+        found = False
+        for target in results["topTargets"]:
+            if target["endpoint"] == target_endpoint:
+                target["count"] += 1
+                found = True
+                break
+        
+        if not found:
+            results["topTargets"].append({"endpoint": target_endpoint, "count": 1})
+        
+        # Sort by count and keep top 5
+        results["topTargets"] = sorted(results["topTargets"], key=lambda x: x["count"], reverse=True)[:5]
+    
+    # Update hourly trend
+    hour = datetime.datetime.now().strftime('%Y-%m-%d %H:00')
+    
+    # Find if this hour is already in the list
+    hour_found = False
+    for trend in results["hourlyTrend"]:
+        if trend["hour"] == hour:
+            trend["count"] += 1
+            hour_found = True
+            break
+    
+    if not hour_found:
+        results["hourlyTrend"].append({
+            "hour": hour,
+            "count": 1
+        })
+        
+        # Keep only the last 24 hours
+        if len(results["hourlyTrend"]) > 24:
+            results["hourlyTrend"] = results["hourlyTrend"][-24:]
+    
+    # Save updated results
+    with open(XSS_RESULTS_FILE, 'w') as f:
+        json.dump(results, f)
+    
+    return results
+
 if __name__ == "__main__":
     stats = generate_xss_stats()
+    # Output only the JSON to stdout
     print(json.dumps(stats)) 
