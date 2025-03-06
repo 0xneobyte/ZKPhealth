@@ -66,6 +66,13 @@ export const AuthProvider = ({ children }) => {
       // Get user role
       const role = await connectedContract.getUserRole(address);
       console.log("User role:", role);
+      console.log("User role type:", typeof role);
+      console.log("Role comparison admin:", role === "admin");
+      console.log("Role comparison ADMIN:", role === "ADMIN");
+      console.log(
+        "Role comparison (case insensitive):",
+        role.toLowerCase() === "admin"
+      );
 
       // Check if 2FA is enabled
       const is2FAEnabled = await connectedContract.is2FAEnabled(address);
@@ -81,7 +88,15 @@ export const AuthProvider = ({ children }) => {
       } else {
         // Complete login if 2FA not required
         await completeLogin(address, role);
-        navigate("/dashboard");
+
+        // Redirect based on role
+        if (role.toLowerCase() === "admin") {
+          navigate("/admin");
+        } else if (role.toLowerCase() === "insurance") {
+          navigate("/insurance");
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -101,12 +116,22 @@ export const AuthProvider = ({ children }) => {
 
       if (response.success) {
         console.log("2FA verification successful");
+        console.log("Temp role:", tempRole);
+        console.log("Temp role type:", typeof tempRole);
         await completeLogin(tempAddress, tempRole);
         setRequires2FA(false);
         setShow2FADialog(false);
         setTempAddress(null);
         setTempRole(null);
-        navigate("/dashboard");
+
+        // Redirect based on role
+        if (tempRole.toLowerCase() === "admin") {
+          navigate("/admin");
+        } else if (tempRole.toLowerCase() === "insurance") {
+          navigate("/insurance");
+        } else {
+          navigate("/dashboard");
+        }
       } else {
         throw new Error("Invalid verification code");
       }

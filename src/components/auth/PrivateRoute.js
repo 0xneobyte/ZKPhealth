@@ -5,6 +5,9 @@ import { CircularProgress, Box } from "@mui/material";
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
+  console.log("PrivateRoute - User:", user);
+  console.log("PrivateRoute - Path:", window.location.pathname);
+
   if (loading) {
     return (
       <Box

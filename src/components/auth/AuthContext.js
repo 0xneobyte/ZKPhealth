@@ -1,233 +1,236 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { ethers } from 'ethers';
-import { connectWallet, signMessage } from '../../utils/web3';
-import { AUTHENTICATION_ABI } from '../../utils/constants';
-import { authenticator } from 'otplib';
-import { useNavigate } from 'react-router-dom';
+import React, { createContext, useState, useContext, useEffect } from "react";
+import { ethers } from "ethers";
+import { connectWallet, signMessage } from "../../utils/web3";
+import { AUTHENTICATION_ABI } from "../../utils/constants";
+import { authenticator } from "otplib";
+import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [contract, setContract] = useState(null);
-    const [pending2FA, setPending2FA] = useState(false);
-    const [isLoggingIn, setIsLoggingIn] = useState(false);
-    const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [contract, setContract] = useState(null);
+  const [pending2FA, setPending2FA] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        const initContract = async () => {
-            try {
-                const { provider } = await connectWallet();
-                const contractAddress = process.env.REACT_APP_CONTRACT_ADDRESS;
-                console.log('Contract Address:', contractAddress);
-                
-                if (!contractAddress) {
-                    throw new Error('Contract address not found in environment variables');
-                }
+  useEffect(() => {
+    const initContract = async () => {
+      try {
+        const { provider } = await connectWallet();
+        const contractAddress = process.env.REACT_APP_CONTRACT_ADDRESS;
+        console.log("Contract Address:", contractAddress);
 
-                const authContract = new ethers.Contract(
-                    contractAddress,
-                    AUTHENTICATION_ABI,
-                    provider
-                );
-                console.log('Contract initialized:', authContract);
-                setContract(authContract);
-            } catch (error) {
-                console.error('Error initializing contract:', error);
-            }
-        };
-
-        initContract();
-        
-        // Check if user is already logged in
-        const token = localStorage.getItem('auth_token');
-        if (token) {
-            setUser(JSON.parse(localStorage.getItem('user')));
+        if (!contractAddress) {
+          throw new Error(
+            "Contract address not found in environment variables"
+          );
         }
-        setLoading(false);
-    }, []);
 
-    const login = async () => {
-        if (isLoggingIn) return;
-        try {
-            setIsLoggingIn(true);
-            setLoading(true);
-            console.log('Starting login process...');
-            
-            // First connect wallet and get signer
-            const { signer, address } = await connectWallet();
-            console.log('Connected wallet:', address);
-            
-            // Connect contract with signer
-            const connectedContract = contract.connect(signer);
-            
-            // Check contract first
-            const isRegistered = await connectedContract.isUserRegistered(address);
-            console.log('Is registered:', isRegistered);
-            
-            if (!isRegistered) {
-                throw new Error('User not registered. Please contact admin.');
-            }
-
-            const role = await connectedContract.getUserRole(address);
-            console.log('User role:', role);
-
-            // Call initiateLogin
-            console.log('Initiating login...');
-            const tx = await connectedContract.initiateLogin();
-            await tx.wait();
-            console.log('Login initiated');
-
-            // Check 2FA status
-            const is2FAEnabled = await connectedContract.is2FAEnabled(address);
-            console.log('2FA enabled:', is2FAEnabled);
-
-            if (is2FAEnabled) {
-                setPending2FA(true);
-            } else {
-                await completeLogin(address, role, signer);
-            }
-            
-        } catch (error) {
-            console.error('Login error:', error);
-            throw error;
-        } finally {
-            setLoading(false);
-            setIsLoggingIn(false);
-        }
+        const authContract = new ethers.Contract(
+          contractAddress,
+          AUTHENTICATION_ABI,
+          provider
+        );
+        console.log("Contract initialized:", authContract);
+        setContract(authContract);
+      } catch (error) {
+        console.error("Error initializing contract:", error);
+      }
     };
 
-    const verify2FA = async (code) => {
-        try {
-            setLoading(true);
-            console.log('Starting 2FA verification for code:', code);
-            
-            const { signer, address } = await connectWallet();
-            console.log('Connected wallet:', address);
+    initContract();
 
-            // Get the stored TOTP secret from localStorage
-            const secrets = JSON.parse(localStorage.getItem('totp_secrets') || '{}');
-            const secret = secrets[address.toLowerCase()];
-            console.log('Found stored secret:', !!secret);
+    // Check if user is already logged in
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      setUser(JSON.parse(localStorage.getItem("user")));
+    }
+    setLoading(false);
+  }, []);
 
-            if (!secret) {
-                throw new Error('2FA secret not found. Please set up 2FA again.');
-            }
+  const login = async () => {
+    if (isLoggingIn) return;
+    try {
+      setIsLoggingIn(true);
+      setLoading(true);
+      console.log("Starting login process...");
 
-            // Verify locally using otplib
-            const isValid = authenticator.verify({
-                token: code,
-                secret: secret
-            });
-            console.log('Local verification result:', isValid);
+      // First connect wallet and get signer
+      const { signer, address } = await connectWallet();
+      console.log("Connected wallet:", address);
 
-            if (!isValid) {
-                throw new Error('Invalid 2FA code');
-            }
-            
-            // Complete login on contract
-            const signerContract = contract.connect(signer);
-            console.log('Completing 2FA login on contract');
-            
-            const tx = await signerContract.complete2FALogin(code, {
-                from: address,
-                gasLimit: 100000
-            });
-            await tx.wait();
-            console.log('Contract 2FA login completed');
+      // Connect contract with signer
+      const connectedContract = contract.connect(signer);
 
-            const role = await contract.getUserRole(address);
-            await completeLogin(address, role, signer);
-            setPending2FA(false);
-            
-        } catch (error) {
-            console.error('2FA verification error:', error);
-            throw error;
-        } finally {
-            setLoading(false);
+      // Check contract first
+      const isRegistered = await connectedContract.isUserRegistered(address);
+      console.log("Is registered:", isRegistered);
+
+      if (!isRegistered) {
+        throw new Error("User not registered. Please contact admin.");
+      }
+
+      const role = await connectedContract.getUserRole(address);
+      console.log("User role:", role);
+
+      // Call initiateLogin
+      console.log("Initiating login...");
+      const tx = await connectedContract.initiateLogin();
+      await tx.wait();
+      console.log("Login initiated");
+
+      // Check 2FA status
+      const is2FAEnabled = await connectedContract.is2FAEnabled(address);
+      console.log("2FA enabled:", is2FAEnabled);
+
+      if (is2FAEnabled) {
+        setPending2FA(true);
+      } else {
+        await completeLogin(address, role, signer);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+      setIsLoggingIn(false);
+    }
+  };
+
+  const verify2FA = async (code) => {
+    try {
+      setLoading(true);
+      console.log("Starting 2FA verification for code:", code);
+
+      const { signer, address } = await connectWallet();
+      console.log("Connected wallet:", address);
+
+      // Get the stored TOTP secret from localStorage
+      const secrets = JSON.parse(localStorage.getItem("totp_secrets") || "{}");
+      const secret = secrets[address.toLowerCase()];
+      console.log("Found stored secret:", !!secret);
+
+      if (!secret) {
+        throw new Error("2FA secret not found. Please set up 2FA again.");
+      }
+
+      // Verify locally using otplib
+      const isValid = authenticator.verify({
+        token: code,
+        secret: secret,
+      });
+      console.log("Local verification result:", isValid);
+
+      if (!isValid) {
+        throw new Error("Invalid 2FA code");
+      }
+
+      // Complete login on contract
+      const signerContract = contract.connect(signer);
+      console.log("Completing 2FA login on contract");
+
+      const tx = await signerContract.complete2FALogin(code, {
+        from: address,
+        gasLimit: 100000,
+      });
+      await tx.wait();
+      console.log("Contract 2FA login completed");
+
+      const role = await contract.getUserRole(address);
+      await completeLogin(address, role, signer);
+      setPending2FA(false);
+    } catch (error) {
+      console.error("2FA verification error:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const completeLogin = async (address, role, signer) => {
+    try {
+      const nonce = Math.floor(Math.random() * 1000000).toString();
+      const signature = await signMessage(
+        `Login to Healthcare ZKP System\nNonce: ${nonce}`,
+        signer
+      );
+
+      const userData = {
+        address,
+        role,
+        token: signature,
+      };
+
+      // Add error handling for server connection
+      try {
+        const apiUrl = process.env.REACT_APP_API_URL;
+        console.log("Attempting to connect to:", apiUrl);
+
+        const response = await fetch(`${apiUrl}/auth/users/${address}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            role: role,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          console.error("Server response:", errorData);
+          throw new Error(`Server returned ${response.status}: ${errorData}`);
         }
-    };
 
-    const completeLogin = async (address, role, signer) => {
-        try {
-            const nonce = Math.floor(Math.random() * 1000000).toString();
-            const signature = await signMessage(
-                `Login to Healthcare ZKP System\nNonce: ${nonce}`,
-                signer
-            );
-            
-            const userData = {
-                address,
-                role,
-                token: signature
-            };
+        console.log("MongoDB record updated");
+      } catch (error) {
+        console.error("Server connection error:", error);
+        // Continue with login even if server update fails
+      }
 
-            // Add error handling for server connection
-            try {
-                const apiUrl = process.env.REACT_APP_API_URL;
-                console.log('Attempting to connect to:', apiUrl);
-                
-                const response = await fetch(`${apiUrl}/auth/users/${address}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        role: role
-                    })
-                });
+      localStorage.setItem("auth_token", userData.token);
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
 
-                if (!response.ok) {
-                    const errorData = await response.text();
-                    console.error('Server response:', errorData);
-                    throw new Error(`Server returned ${response.status}: ${errorData}`);
-                }
+      // After successful login, redirect based on role
+      if (role === "doctor") {
+        navigate("/dashboard");
+      } else if (role === "admin") {
+        navigate("/admin");
+      } else if (role === "insurance") {
+        navigate("/insurance");
+      } else {
+        navigate("/dashboard"); // Default fallback
+      }
+    } catch (error) {
+      console.error("Error in completeLogin:", error);
+      throw error;
+    }
+  };
 
-                console.log('MongoDB record updated');
-            } catch (error) {
-                console.error('Server connection error:', error);
-                // Continue with login even if server update fails
-            }
-            
-            localStorage.setItem('auth_token', userData.token);
-            localStorage.setItem('user', JSON.stringify(userData));
-            setUser(userData);
+  const logout = () => {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user");
+    setUser(null);
+  };
 
-            // After successful login, redirect based on role
-            if (role === 'doctor') {
-                navigate('/dashboard');
-            } else if (role === 'admin') {
-                navigate('/admin');
-            } else if (role === 'insurance') {
-                navigate('/insurance');
-            }
-            
-        } catch (error) {
-            console.error('Error in completeLogin:', error);
-            throw error;
-        }
-    };
-
-    const logout = () => {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
-        setUser(null);
-    };
-
-    return (
-        <AuthContext.Provider value={{ 
-            user, 
-            login, 
-            logout, 
-            loading,
-            pending2FA,
-            verify2FA,
-            contract 
-        }}>
-            {children}
-        </AuthContext.Provider>
-    );
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        loading,
+        pending2FA,
+        verify2FA,
+        contract,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-export const useAuth = () => useContext(AuthContext); 
+export const useAuth = () => useContext(AuthContext);

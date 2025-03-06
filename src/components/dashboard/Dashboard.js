@@ -289,6 +289,13 @@ const Dashboard = () => {
   };
 
   // Render different dashboards based on user role
+  console.log("Dashboard - User role:", user?.role);
+
+  if (user?.role?.toLowerCase() === "admin") {
+    console.log("Redirecting to AdminDashboard");
+    return <Navigate to="/admin" />;
+  }
+
   if (user?.role === "insurance") {
     return <InsuranceDashboard />;
   }
