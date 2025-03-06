@@ -51,7 +51,7 @@ const Login = () => {
           disabled={loading}
           sx={{ mt: 2 }}
         >
-          {loading ? "Connecting..." : "Connect with MetaMask"}
+          {loading ? "Connecting..." : "Connect Wallet"}
         </Button>
       </Box>
     </Container>

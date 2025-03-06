@@ -13,6 +13,11 @@ const twoFactorRoutes = require("./routes/twoFactor");
 const insuranceRoutes = require("./routes/insurance");
 // Import ML routes
 const mlRoutes = require("./routes/ml");
+// Import search routes
+const searchRoutes = require("./routes/search");
+
+// Import middleware
+const xssDetectionMiddleware = require("./middleware/xssDetection");
 
 dotenv.config();
 
@@ -49,6 +54,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// XSS detection middleware
+app.use(xssDetectionMiddleware);
+
 // Add health check endpoint
 app.get("/health", (req, res) => {
   res.json({
@@ -66,6 +74,8 @@ app.use("/2fa", twoFactorRoutes);
 app.use("/insurance", insuranceRoutes);
 // Mount ML routes
 app.use("/ml", mlRoutes);
+// Mount search routes
+app.use("/search", searchRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
