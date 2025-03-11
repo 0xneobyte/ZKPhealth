@@ -13,7 +13,6 @@ from collections import Counter, deque
 import threading
 import socket
 
-# Redirect warnings to stderr to avoid interfering with JSON output
 warnings.filterwarnings("ignore")
 
 # In a real implementation, we would import scapy

@@ -1,400 +1,473 @@
 const path = require("path");
 const { spawn } = require("child_process");
 const { runPythonScript } = require("../utils/pythonRunner");
+const { execFile } = require("child_process");
+// Import security alerts from ML module
+let mlSecurityAlerts;
+try {
+  const mlModule = require("../routes/ml");
+  mlSecurityAlerts = mlModule.securityAlerts;
+} catch (error) {
+  console.error("Error importing ml module:", error);
+  mlSecurityAlerts = [];
+}
 
 // Initialize global packet logs
 global.packetLogs = global.packetLogs || [];
+
+// Set up a simple interval to log traffic stats
+setInterval(() => {
+  const now = Date.now();
+  const last30Seconds = now - 30000;
+
+  // Get packets from last 30 seconds
+  const recentPackets = global.packetLogs.filter(
+    (p) => new Date(p.timestamp).getTime() > last30Seconds
+  );
+
+  if (recentPackets.length > 0) {
+    const uniqueIPs = new Set(recentPackets.map((p) => p.src_ip)).size;
+    console.log(
+      `Traffic stats last 30s: ${recentPackets.length} requests, ${uniqueIPs} unique IPs`
+    );
+
+    // Simple rule-based detection
+    const requestRate = recentPackets.length / 30;
+    const avgRequestsPerIP = recentPackets.length / Math.max(1, uniqueIPs);
+
+    // Alert if traffic exceeds thresholds - lowered to match current traffic
+    if (requestRate > 0.5 && avgRequestsPerIP > 10) {
+      console.log(
+        "\x1b[31m%s\x1b[0m",
+        "🚨 ALERT: Possible DDoS Attack Detected! 🚨"
+      );
+      console.log(
+        "\x1b[31m%s\x1b[0m",
+        `High traffic rate: ${requestRate.toFixed(
+          2
+        )} req/s from ${uniqueIPs} IPs`
+      );
+      console.log(
+        "\x1b[31m%s\x1b[0m",
+        `Average ${avgRequestsPerIP.toFixed(2)} requests per IP`
+      );
+
+      // Count occurrences of each IP
+      const ipCounts = {};
+      recentPackets.forEach((packet) => {
+        const ip = packet.src_ip || "unknown";
+        ipCounts[ip] = (ipCounts[ip] || 0) + 1;
+      });
+
+      // Sort IPs by count in descending order
+      const topIPs = Object.entries(ipCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+      console.log("Top attacking IPs:");
+      topIPs.forEach(([ip, count]) => {
+        console.log(`  ${ip}: ${count} requests`);
+      });
+
+      // Save rule-based alert to global alerts array
+      if (!global.ddosAlerts) {
+        global.ddosAlerts = [];
+      }
+
+      const alertData = {
+        timestamp: new Date().toISOString(),
+        type: "rule-based",
+        requestRate,
+        avgRequestsPerIP,
+        uniqueIPs,
+        totalRequests: recentPackets.length,
+        topIPs: topIPs.map(([ip, count]) => ({ ip, count })),
+        source: "Rule-based detection",
+      };
+
+      global.ddosAlerts.push(alertData);
+
+      // Keep only the last 100 alerts
+      if (global.ddosAlerts.length > 100) {
+        global.ddosAlerts = global.ddosAlerts.slice(-100);
+      }
+
+      // Add to ML security alerts array for admin dashboard
+      if (mlSecurityAlerts) {
+        mlSecurityAlerts.push({
+          timestamp: new Date().toISOString(),
+          type: "ddos",
+          severity: "medium",
+          message: `DDoS attack detected - ${requestRate.toFixed(
+            2
+          )} req/s, ${avgRequestsPerIP.toFixed(2)} req/IP`,
+          details: {
+            requestRate,
+            avgRequestsPerIP,
+            uniqueIPs,
+            totalRequests: recentPackets.length,
+            source: "Rule-based detection",
+            topAttackers: topIPs
+              .slice(0, 3)
+              .map(([ip, count]) => `${ip} (${count} requests)`),
+          },
+        });
+      }
+    }
+
+    // Call ML model if significant traffic
+    if (recentPackets.length > 10) {
+      analyzeDDoSTraffic(extractFeaturesForML(recentPackets)).catch((err) =>
+        console.error("Error in DDoS analysis:", err)
+      );
+    }
+  }
+}, 5000); // Check every 5 seconds
 
 /**
  * Middleware to monitor traffic and detect potential attacks
  */
 const trafficMonitor = (req, res, next) => {
   // Skip monitoring for certain paths
-  const skipPaths = ["/ml/traffic", "/health", "/api/packets"];
-  if (skipPaths.some((path) => req.path.includes(path))) {
+  const skipPaths = ["/ml/traffic", "/static"];
+  if (skipPaths.some((p) => req.path.includes(p))) {
     return next();
   }
 
-  // Capture request start time
-  const startTime = Date.now();
+  // Log request
+  console.log(`${req.method} ${req.path}`);
 
   // Create a packet object with request data
   const packet = {
     timestamp: new Date().toISOString(),
     src_ip:
       req.ip || req.headers["x-forwarded-for"] || req.connection.remoteAddress,
-    dst_ip: req.hostname || "localhost",
-    protocol: "HTTP",
-    method: req.method,
     path: req.path,
-    user_agent: req.get("User-Agent"),
-    content_length: parseInt(req.get("Content-Length") || "0"),
-    headers: Object.keys(req.headers).reduce((obj, key) => {
-      // Filter out sensitive headers
-      if (!["cookie", "authorization"].includes(key.toLowerCase())) {
-        obj[key] = req.headers[key];
-      }
-      return obj;
-    }, {}),
+    method: req.method,
+    headers: req.headers,
+    query: req.query,
+    content_length: parseInt(req.headers["content-length"] || "0"),
   };
 
-  // Store original end method
-  const originalEnd = res.end;
+  // Store the packet
+  global.packetLogs.push(packet);
 
-  // Override end method to capture response data
-  res.end = function (chunk, encoding) {
-    // Calculate request duration
-    const duration = Date.now() - startTime;
+  // Limit packet log size to prevent memory leaks
+  if (global.packetLogs.length > 1000) {
+    global.packetLogs = global.packetLogs.slice(-1000);
+  }
 
-    // Add response data to packet
+  // Capture response
+  const originalSend = res.send;
+  const startTime = Date.now();
+
+  res.send = function (body) {
+    // Augment packet with response data
+    const responseTime = Date.now() - startTime;
     packet.status_code = res.statusCode;
-    packet.response_time = duration;
-    packet.response_size = res._contentLength || 0;
+    packet.response_time = responseTime;
+    packet.response_size = body ? body.length : 0;
 
-    // Send packet to ML analysis
-    analyzeTraffic(packet);
-
-    // Call original end method
-    return originalEnd.call(this, chunk, encoding);
+    // Call original send
+    return originalSend.call(this, body);
   };
 
   next();
 };
 
 /**
- * Function to analyze traffic and detect potential attacks
- * @param {Object} packet - The packet object with request/response data
- */
-const analyzeTraffic = async (packet) => {
-  try {
-    // Store packet in memory
-    global.packetLogs.push(packet);
-
-    // Keep only the last 1000 packets
-    if (global.packetLogs.length > 1000) {
-      global.packetLogs.shift();
-    }
-
-    // Periodically analyze all traffic with ML model
-    // We don't want to call the ML model for every single request as that would be too resource-intensive
-    // Instead, we'll analyze in batches every few seconds
-    const now = Date.now();
-    if (!global.lastMLAnalysisTime || now - global.lastMLAnalysisTime > 5000) {
-      // Every 5 seconds
-      global.lastMLAnalysisTime = now;
-      analyzeAllTraffic();
-    }
-  } catch (error) {
-    console.error("Error analyzing traffic:", error);
-  }
-};
-
-/**
- * Function to analyze all recent traffic with the ML model
- */
-const analyzeAllTraffic = () => {
-  try {
-    // Get recent packets (last 30 seconds)
-    const now = Date.now();
-    const recentPackets = global.packetLogs.filter(
-      (p) => new Date(p.timestamp).getTime() > now - 30000
-    );
-
-    // If we have enough packets to analyze
-    if (recentPackets.length > 10) {
-      // Extract features for ML model from all traffic
-      const features = extractFeaturesForML(recentPackets);
-
-      // Use ML model to analyze all traffic
-      useDDoSModel(features);
-    }
-  } catch (error) {
-    console.error("Error analyzing all traffic:", error);
-  }
-};
-
-/**
  * Extract features for ML model from recent packets
- * @param {Array} packets - Recent packets
- * @returns {Object} Features for ML model
  */
 const extractFeaturesForML = (packets) => {
-  // Calculate request rate
-  const requestRate = packets.length / 30; // requests per second over 30 seconds
+  const now = Date.now();
+  const windowStart = now - 30000; // 30 second window
 
-  // Calculate average response time
-  const avgResponseTime =
-    packets.reduce((sum, p) => sum + (p.response_time || 0), 0) /
-    packets.length;
+  // Basic stats
+  const requestCount = packets.length;
+  const sourceIPs = packets.map(
+    (p) => p.src_ip || p.headers["x-forwarded-for"] || "unknown"
+  );
+  const uniqueIPs = new Set(sourceIPs);
+  const paths = packets.map((p) => p.path);
 
-  // Count requests by method
+  // Content length stats
+  const contentLengths = packets.map((p) => p.content_length || 0);
+  const avgContentLength =
+    contentLengths.reduce((a, b) => a + b, 0) /
+    Math.max(1, contentLengths.length);
+
+  // Method distribution
   const methodCounts = {};
   packets.forEach((p) => {
     methodCounts[p.method] = (methodCounts[p.method] || 0) + 1;
   });
 
-  // Count requests by path
+  // Most targeted paths
   const pathCounts = {};
-  packets.forEach((p) => {
-    pathCounts[p.path] = (pathCounts[p.path] || 0) + 1;
+  paths.forEach((p) => {
+    pathCounts[p] = (pathCounts[p] || 0) + 1;
   });
+  const mostTargetedPath =
+    Object.entries(pathCounts).sort(([, a], [, b]) => b - a)[0]?.[0] || "/";
 
-  // Find most targeted path
-  let mostTargetedPath = "";
-  let maxPathCount = 0;
-  Object.entries(pathCounts).forEach(([path, count]) => {
-    if (count > maxPathCount) {
-      mostTargetedPath = path;
-      maxPathCount = count;
-    }
-  });
-
-  // Count requests by IP
+  // Top source IPs
   const ipCounts = {};
-  packets.forEach((p) => {
-    ipCounts[p.src_ip] = (ipCounts[p.src_ip] || 0) + 1;
+  sourceIPs.forEach((ip) => {
+    ipCounts[ip] = (ipCounts[ip] || 0) + 1;
   });
-
-  // Get top IPs
   const topIPs = Object.entries(ipCounts)
-    .sort((a, b) => b[1] - a[1])
+    .sort(([, a], [, b]) => b - a)
     .slice(0, 10)
     .map(([ip, count]) => ({ ip, count }));
 
-  // Calculate standard deviation of requests per IP
-  const ipCountValues = Object.values(ipCounts);
-  const avgRequestsPerIP =
-    ipCountValues.reduce((sum, count) => sum + count, 0) / ipCountValues.length;
-  const variance =
-    ipCountValues.reduce(
-      (sum, count) => sum + Math.pow(count - avgRequestsPerIP, 2),
-      0
-    ) / ipCountValues.length;
-  const stdDevRequestsPerIP = Math.sqrt(variance);
+  // Simplified TCP stats (HTTP-based estimation)
+  const tcpStats = {
+    syn_count: packets.filter((p) => p.method === "GET").length,
+    ack_count: packets.length,
+    psh_count: packets.filter((p) => p.method === "POST" || p.method === "PUT")
+      .length,
+    rst_count: 0,
+    fin_count: packets.length, // Each HTTP request should complete
+    total_window_size: packets.length * 65535,
+    total_urgent_ptr: 0,
+    total_header_len: packets.length * 20,
+  };
 
   return {
-    timestamp: new Date().toISOString(),
-    request_count: packets.length,
-    request_rate: requestRate,
-    avg_response_time: avgResponseTime,
-    unique_ips: Object.keys(ipCounts).length,
+    timestamp: now,
+    request_count: requestCount,
+    source_ips: Array.from(uniqueIPs),
     top_ips: topIPs,
-    method_distribution: methodCounts,
     most_targeted_path: mostTargetedPath,
-    path_count: maxPathCount,
-    avg_requests_per_ip: avgRequestsPerIP,
-    std_dev_requests_per_ip: stdDevRequestsPerIP,
-    // Additional features that might be useful for ML
-    status_code_distribution: getStatusCodeDistribution(packets),
-    content_length_stats: getContentLengthStats(packets),
-    time_distribution: getTimeDistribution(packets),
+    method_distribution: methodCounts,
+    content_length_stats: {
+      avg: avgContentLength,
+    },
+    tcp_stats: tcpStats,
+    raw_packets: packets,
   };
 };
 
 /**
- * Get distribution of status codes
- * @param {Array} packets - Packets to analyze
- * @returns {Object} Distribution of status codes
+ * Analyze traffic for DDoS using ML model
  */
-const getStatusCodeDistribution = (packets) => {
-  const distribution = {};
-  packets.forEach((p) => {
-    if (p.status_code) {
-      const category = Math.floor(p.status_code / 100) * 100;
-      distribution[category] = (distribution[category] || 0) + 1;
-    }
-  });
-  return distribution;
-};
-
-/**
- * Get statistics about content length
- * @param {Array} packets - Packets to analyze
- * @returns {Object} Content length statistics
- */
-const getContentLengthStats = (packets) => {
-  const lengths = packets
-    .map((p) => p.content_length || 0)
-    .filter((l) => l > 0);
-  if (lengths.length === 0) return { avg: 0, max: 0, min: 0 };
-
-  return {
-    avg: lengths.reduce((sum, l) => sum + l, 0) / lengths.length,
-    max: Math.max(...lengths),
-    min: Math.min(...lengths),
-  };
-};
-
-/**
- * Get distribution of requests over time
- * @param {Array} packets - Packets to analyze
- * @returns {Object} Distribution of requests over time
- */
-const getTimeDistribution = (packets) => {
-  const distribution = {};
-  const now = Date.now();
-
-  // Group by 5-second intervals
-  packets.forEach((p) => {
-    const timestamp = new Date(p.timestamp).getTime();
-    const secondsAgo = Math.floor((now - timestamp) / 5000) * 5;
-    distribution[secondsAgo] = (distribution[secondsAgo] || 0) + 1;
-  });
-
-  return distribution;
-};
-
-/**
- * Use ML model to analyze traffic and detect DDoS attacks
- * @param {Object} features - Features extracted from traffic
- */
-const useDDoSModel = async (features) => {
+const analyzeDDoSTraffic = async (features) => {
   try {
-    // In a production environment, we would use the actual ML model here
-    // For now, we'll use a simplified approach based on traffic patterns
+    const requestRate = features.request_count / 30; // requests per second
+    const uniqueIPs = new Set(features.source_ips).size;
+    const avgRequestsPerIP = features.request_count / Math.max(1, uniqueIPs);
 
-    // These thresholds would ideally come from the ML model
-    const highRequestRate = 20; // More than 20 requests per second
-    const highStdDev = 5; // High standard deviation indicates uneven distribution
-    const highRatio = 3; // High ratio of requests to unique IPs
-
-    let isAttack = false;
-    let attackType = "";
-    let confidence = 0;
-
-    // Check for high request rate
-    if (features.request_rate > highRequestRate) {
-      isAttack = true;
-      attackType = "http_flood";
-      confidence = Math.min(
-        0.5 + (features.request_rate / highRequestRate) * 0.1,
-        0.95
-      );
-    }
-
-    // Check for distributed attack (many IPs, each with few requests)
-    if (features.unique_ips > 10 && features.avg_requests_per_ip < 3) {
-      isAttack = true;
-      attackType = "distributed_http_flood";
-      confidence = Math.min(0.6 + (features.unique_ips / 20) * 0.1, 0.9);
-    }
-
-    // Check for targeted attack (few IPs, each with many requests)
-    if (features.std_dev_requests_per_ip > highStdDev) {
-      isAttack = true;
-      attackType = "targeted_http_flood";
-      confidence = Math.min(
-        0.7 + (features.std_dev_requests_per_ip / highStdDev) * 0.05,
-        0.95
-      );
-    }
-
-    // Check for API abuse (high ratio of requests to unique IPs)
-    const requestToIPRatio =
-      features.request_count / Math.max(1, features.unique_ips);
-    if (requestToIPRatio > highRatio) {
-      isAttack = true;
-      attackType = "api_abuse";
-      confidence = Math.min(0.6 + (requestToIPRatio / highRatio) * 0.1, 0.9);
-    }
-
-    // If we detect an attack, save it
-    if (isAttack) {
-      // Create detection object
-      const detection = {
-        timestamp: features.timestamp,
-        attack_type: attackType,
-        source_ips: features.top_ips.map((s) => s.ip),
-        target: features.most_targeted_path || "HTTP Server",
-        request_count: features.request_count,
-        request_rate: features.request_rate,
-        confidence: confidence,
-        features: features, // Include all features for analysis
-      };
-
-      // Save detection
-      saveDDoSDetection(detection);
-
-      console.log(
-        `ML model detected DoS attack: ${attackType} with confidence ${confidence.toFixed(
-          2
-        )}`
-      );
-    }
-
-    // In a real implementation, we would use the actual ML model:
-    /*
-    try {
-      // Convert features to the format expected by the ML model
-      const mlFeatures = convertFeaturesToMLFormat(features);
-      
-      // Call the ML model
-      const result = await runPythonScript('ddos_analyze.py', [JSON.stringify(mlFeatures)]);
-      
-      // If the model predicts an attack, save it
-      if (result.is_attack) {
-        saveDDoSDetection({
-          timestamp: features.timestamp,
-          attack_type: result.attack_type,
-          source_ips: features.top_ips.map(s => s.ip),
-          target: features.most_targeted_path || 'HTTP Server',
-          confidence: result.confidence,
-          features: features
-        });
-      }
-    } catch (error) {
-      console.error('Error calling ML model:', error);
-    }
-    */
-  } catch (error) {
-    console.error("Error using DDoS ML model:", error);
-  }
-};
-
-/**
- * Save DDoS detection to persistent storage
- * @param {Object} detection - Detection data
- */
-const saveDDoSDetection = async (detection) => {
-  try {
-    // Get the securityAlerts array from the ml.js module
-    const mlModule = require("../routes/ml");
-    const securityAlerts = mlModule.securityAlerts;
-
-    // Add to security alerts
-    if (securityAlerts) {
-      securityAlerts.push({
-        id: Date.now(),
-        type: "danger",
-        message: `DDoS attack detected! ${detection.attack_type} targeting ${detection.target}`,
-        timestamp: detection.timestamp,
-        severity: "high",
-        details: `Request rate: ${detection.request_rate}/s from ${detection.source_ips.length} IPs`,
-      });
-    }
-
-    // Run the Python script to save the detection
-    const scriptPath = path.join(
-      __dirname,
-      "../../ML Models/scripts/ddos_save_detection.py"
-    );
-
-    const pythonProcess = spawn("python", [
-      scriptPath,
-      JSON.stringify(detection),
-    ]);
-
-    pythonProcess.stderr.on("data", (data) => {
-      console.error(`Error saving DDoS detection: ${data}`);
+    console.log("Traffic Analysis:", {
+      requestCount: features.request_count,
+      uniqueIPs: uniqueIPs,
+      requestRate: requestRate,
+      avgRequestsPerIP: avgRequestsPerIP,
     });
 
-    // Force refresh of the DDoS stats cache
-    if (mlModule.ddosCache) {
-      mlModule.ddosCache.lastUpdated = null;
+    // Skip ML analysis if no traffic
+    if (features.request_count === 0) {
+      console.log("No traffic to analyze");
+      return { is_attack: false, confidence: 0, prediction: 0 };
     }
+
+    // Convert features to the format expected by the ML model
+    const mlFeatures = {
+      dt: features.timestamp,
+      pktcount: features.request_count,
+      bytecount: features.content_length_stats.avg * features.request_count,
+      dur: 30,
+      flows: uniqueIPs,
+      packetins: features.request_count,
+      pktperflow: avgRequestsPerIP,
+      byteperflow:
+        (features.content_length_stats.avg * features.request_count) /
+        Math.max(1, uniqueIPs),
+      pktrate: requestRate,
+      Protocol: features.method_distribution.POST ? "TCP" : "UDP",
+      port_no: 80,
+      tx_bytes: features.content_length_stats.avg * features.request_count,
+      rx_bytes: features.content_length_stats.avg * features.request_count,
+      // Add TCP flags and header information with safe division
+      syn_flag:
+        features.tcp_stats.syn_count / Math.max(1, features.request_count),
+      ack_flag:
+        features.tcp_stats.ack_count / Math.max(1, features.request_count),
+      psh_flag:
+        features.tcp_stats.psh_count / Math.max(1, features.request_count),
+      rst_flag:
+        features.tcp_stats.rst_count / Math.max(1, features.request_count),
+      fin_flag:
+        features.tcp_stats.fin_count / Math.max(1, features.request_count),
+      window_size:
+        features.tcp_stats.total_window_size /
+        Math.max(1, features.request_count),
+      urgent_ptr:
+        features.tcp_stats.total_urgent_ptr /
+        Math.max(1, features.request_count),
+      header_len:
+        features.tcp_stats.total_header_len /
+        Math.max(1, features.request_count),
+    };
+
+    console.log("Sending features to ML model:", mlFeatures);
+
+    // Call Python script with features using promise instead of execFile
+    return new Promise((resolve, reject) => {
+      try {
+        // Use the correct path - going up one directory from backend
+        const mlScriptPath = path.join(
+          __dirname,
+          "../../ML Models/scripts/ddos_analyze.py"
+        );
+        console.log("Using ML script path:", mlScriptPath);
+
+        // Use the virtual environment's Python interpreter
+        const pythonPath = path.join(__dirname, "../../venv/bin/python");
+        console.log("Using Python interpreter:", pythonPath);
+
+        const pythonProcess = spawn(pythonPath, [
+          mlScriptPath,
+          JSON.stringify(mlFeatures),
+        ]);
+
+        let stdout = "";
+        let stderr = "";
+
+        // Collect stdout data
+        pythonProcess.stdout.on("data", (data) => {
+          stdout += data.toString();
+        });
+
+        // Collect stderr data
+        pythonProcess.stderr.on("data", (data) => {
+          stderr += data.toString();
+          console.log(`ML model stderr: ${data.toString()}`);
+        });
+
+        // Handle process completion
+        pythonProcess.on("close", (code) => {
+          console.log(`ML process exited with code ${code}`);
+
+          if (code !== 0) {
+            console.error(`ML model error: ${stderr}`);
+            resolve({
+              is_attack: false,
+              error: `Process exited with code ${code}`,
+              confidence: 0,
+            });
+            return;
+          }
+
+          try {
+            // Parse the JSON response
+            const mlResponse = JSON.parse(stdout.trim());
+            console.log("ML model response:", mlResponse);
+
+            // If ML model detects an attack or confidence is high, save to alerts
+            if (mlResponse.is_attack === true || mlResponse.confidence > 0.7) {
+              // Initialize global alerts array if not exists
+              if (!global.ddosAlerts) {
+                global.ddosAlerts = [];
+              }
+
+              // Save ML-based alert
+              const mlAlertData = {
+                timestamp: new Date().toISOString(),
+                type: "ml-based",
+                requestRate,
+                avgRequestsPerIP,
+                uniqueIPs,
+                totalRequests: features.request_count,
+                confidence: mlResponse.confidence,
+                attack_type: mlResponse.attack_type || "Unknown",
+                source: "ML model detection",
+              };
+
+              global.ddosAlerts.push(mlAlertData);
+
+              // Keep only the last 100 alerts
+              if (global.ddosAlerts.length > 100) {
+                global.ddosAlerts = global.ddosAlerts.slice(-100);
+              }
+
+              // Add to ML security alerts array for admin dashboard
+              if (mlSecurityAlerts) {
+                // Map attack type to categories used in the dashboard
+                let attackType = "http_flood"; // Default
+                if (mlResponse.attack_type) {
+                  if (mlResponse.attack_type.includes("syn"))
+                    attackType = "syn_flood";
+                  else if (mlResponse.attack_type.includes("udp"))
+                    attackType = "udp_flood";
+                  else if (mlResponse.attack_type.includes("slow"))
+                    attackType = "slowloris";
+                }
+
+                mlSecurityAlerts.push({
+                  timestamp: new Date().toISOString(),
+                  type: "ddos",
+                  severity: "high",
+                  message: `ML model detected DDoS attack - ${attackType} with ${(
+                    mlResponse.confidence * 100
+                  ).toFixed(0)}% confidence`,
+                  details: {
+                    requestRate,
+                    avgRequestsPerIP,
+                    uniqueIPs,
+                    totalRequests: features.request_count,
+                    confidence: mlResponse.confidence,
+                    attack_type: mlResponse.attack_type || "Unknown",
+                    source: "ML model detection",
+                  },
+                });
+              }
+            }
+
+            // Simple threshold-based detection as backup
+            const isHighTraffic = requestRate > 100; // More than 100 req/sec
+            const isHighRequestsPerIP = avgRequestsPerIP > 20; // More than 20 req/user
+
+            if (isHighTraffic && isHighRequestsPerIP) {
+              console.log("ALERT: High traffic detected - possible DDoS!");
+            }
+
+            resolve(mlResponse);
+          } catch (parseError) {
+            console.error("Error parsing ML model response:", parseError);
+            console.error("Raw stdout:", stdout);
+            resolve({
+              is_attack: false,
+              error: `JSON parse error: ${parseError.message}`,
+              confidence: 0,
+            });
+          }
+        });
+
+        // Handle process error
+        pythonProcess.on("error", (error) => {
+          console.error(`Error spawning ML process: ${error}`);
+          resolve({ is_attack: false, error: error.message, confidence: 0 });
+        });
+      } catch (error) {
+        console.error("Error in ML model execution:", error);
+        resolve({ is_attack: false, error: error.message, confidence: 0 });
+      }
+    });
   } catch (error) {
-    console.error("Error saving DDoS detection:", error);
+    console.error("Error in DDoS detection:", error);
+    return { error: error.message, is_attack: false };
   }
 };
+
+// Log handler for detections
+const logDetection = async (detection) => {
+  console.log("DDoS Detection:", detection);
+};
+
+// Clean up on process exit
+process.on("SIGINT", () => {
+  console.log("Packet Logger: Shutting down packet logger");
+  process.exit();
+});
 
 module.exports = trafficMonitor;
