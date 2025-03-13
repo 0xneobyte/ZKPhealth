@@ -5,6 +5,49 @@ import Dashboard from "./components/dashboard/Dashboard";
 import AdminDashboard from "./components/admin/AdminDashboard";
 import InsuranceDashboard from "./components/insurance/InsuranceDashboard";
 import PrivateRoute from "./components/auth/PrivateRoute";
+import Navbar from "./components/Navbar";
+import { Box, Container } from "@mui/material";
+
+// Layout component to provide consistent structure
+const AppLayout = ({ children }) => {
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <Navbar />
+      <Container
+        component="main"
+        sx={{
+          flexGrow: 1,
+          py: 3,
+          px: { xs: 2, sm: 3 },
+          animation: "fadeIn 0.5s ease-in-out",
+          "@keyframes fadeIn": {
+            "0%": { opacity: 0 },
+            "100%": { opacity: 1 },
+          },
+        }}
+      >
+        {children}
+      </Container>
+      <Box
+        component="footer"
+        sx={{
+          py: 3,
+          px: 2,
+          mt: "auto",
+          backgroundColor: "primary.main",
+          color: "white",
+          textAlign: "center",
+          fontSize: "0.875rem",
+        }}
+      >
+        <Container maxWidth="lg">
+          © {new Date().getFullYear()} DIGIMED Healthcare - Secure Health Data
+          Management
+        </Container>
+      </Box>
+    </Box>
+  );
+};
 
 function App() {
   return (
@@ -16,7 +59,9 @@ function App() {
             path="/dashboard"
             element={
               <PrivateRoute>
-                <Dashboard />
+                <AppLayout>
+                  <Dashboard />
+                </AppLayout>
               </PrivateRoute>
             }
           />
@@ -24,7 +69,9 @@ function App() {
             path="/admin"
             element={
               <PrivateRoute>
-                <AdminDashboard />
+                <AppLayout>
+                  <AdminDashboard />
+                </AppLayout>
               </PrivateRoute>
             }
           />
@@ -32,7 +79,9 @@ function App() {
             path="/insurance"
             element={
               <PrivateRoute>
-                <InsuranceDashboard />
+                <AppLayout>
+                  <InsuranceDashboard />
+                </AppLayout>
               </PrivateRoute>
             }
           />
