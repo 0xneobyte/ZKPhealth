@@ -524,6 +524,18 @@ def monitor_network():
     # Load persistent data
     load_persistent_data()
     
+    # Initialize traffic data with some values if empty
+    if not detection_results["trafficData"]:
+        sys.stderr.write("Initializing traffic data with simulation values\n")
+        now = datetime.datetime.now()
+        for second in range(60):
+            time_str = (now - datetime.timedelta(seconds=60-second)).strftime('%H:%M:%S')
+            detection_results["trafficData"].append({
+                "time": time_str,
+                "packets": random.randint(50, 5000)
+            })
+        save_detection_results()
+    
     try:
         # In a real implementation, we would use Scapy to sniff packets
         # sniff(prn=packet_callback, store=0)

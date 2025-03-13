@@ -475,37 +475,93 @@ function AdminDashboard() {
                   <CardContent>
                     {securityAlerts && securityAlerts.length > 0 ? (
                       <List>
-                        {securityAlerts.map((alert) => (
-                          <ListItem
-                            key={alert.id}
-                            sx={{
-                              mb: 1,
-                              bgcolor:
-                                alert.severity === "high"
-                                  ? "error.light"
-                                  : alert.severity === "medium"
-                                  ? "warning.light"
-                                  : "info.light",
-                              borderRadius: 1,
-                            }}
-                          >
-                            <ListItemText
-                              primary={alert.message}
-                              secondary={
-                                <>
-                                  <Typography component="span" variant="body2">
-                                    Severity: {alert.severity} | Type:{" "}
-                                    {alert.type}
-                                  </Typography>
-                                  <br />
-                                  <Typography component="span" variant="body2">
-                                    {new Date(alert.timestamp).toLocaleString()}
-                                  </Typography>
-                                </>
-                              }
-                            />
-                          </ListItem>
-                        ))}
+                        {/* Group alerts by type and severity and show only the most recent from each category */}
+                        {(() => {
+                          // Group alerts by their category
+                          const alertCategories = {
+                            rule_based: null, // For orange alerts (medium severity) - keep only 1
+                            ml_model_alerts: [], // For red alerts (high severity) - keep the 2 newest
+                          };
+
+                          // Find the most recent medium severity alert and the two newest high severity alerts
+                          securityAlerts.forEach((alert) => {
+                            // Rule-based alerts have medium severity - keep only the newest one
+                            if (
+                              alert.severity === "medium" &&
+                              (!alertCategories.rule_based ||
+                                new Date(alert.timestamp) >
+                                  new Date(
+                                    alertCategories.rule_based.timestamp
+                                  ))
+                            ) {
+                              alertCategories.rule_based = alert;
+                            }
+                            // ML model alerts have high severity - keep the two newest
+                            else if (alert.severity === "high") {
+                              alertCategories.ml_model_alerts.push(alert);
+                            }
+                          });
+
+                          // Sort high severity alerts by timestamp (newest first) and keep only the two newest
+                          alertCategories.ml_model_alerts.sort(
+                            (a, b) =>
+                              new Date(b.timestamp) - new Date(a.timestamp)
+                          );
+
+                          // Only keep the two newest high severity alerts
+                          alertCategories.ml_model_alerts =
+                            alertCategories.ml_model_alerts.slice(0, 2);
+
+                          // Combine alerts from both categories
+                          const combinedAlerts = [];
+                          if (alertCategories.rule_based) {
+                            combinedAlerts.push(alertCategories.rule_based);
+                          }
+                          combinedAlerts.push(
+                            ...alertCategories.ml_model_alerts
+                          );
+
+                          // Return the filtered alerts
+                          return combinedAlerts.map((alert) => (
+                            <ListItem
+                              key={alert.id}
+                              sx={{
+                                mb: 1,
+                                bgcolor:
+                                  alert.severity === "high"
+                                    ? "error.light"
+                                    : alert.severity === "medium"
+                                    ? "warning.light"
+                                    : "info.light",
+                                borderRadius: 1,
+                              }}
+                            >
+                              <ListItemText
+                                primary={alert.message}
+                                secondary={
+                                  <>
+                                    <Typography
+                                      component="span"
+                                      variant="body2"
+                                    >
+                                      Severity: {alert.severity} | Type:{" "}
+                                      {alert.type}
+                                    </Typography>
+                                    <br />
+                                    <Typography
+                                      component="span"
+                                      variant="body2"
+                                    >
+                                      {new Date(
+                                        alert.timestamp
+                                      ).toLocaleString()}
+                                    </Typography>
+                                  </>
+                                }
+                              />
+                            </ListItem>
+                          ));
+                        })()}
                       </List>
                     ) : (
                       <Typography>No recent security alerts</Typography>

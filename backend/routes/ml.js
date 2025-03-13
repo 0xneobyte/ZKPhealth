@@ -300,6 +300,47 @@ router.get("/dashboard", async (req, res) => {
 
     await Promise.all(promises);
 
+    // Filter alerts to show only one per category
+    const filteredAlerts = (() => {
+      // Group alerts by severity
+      const alertsBySeverity = {
+        medium: null, // For rule-based alerts (orange/yellow) - keep only one
+        low: null, // For informational alerts - keep only one
+      };
+
+      // For high severity alerts (red), keep the two most recent ones
+      const highSeverityAlerts = securityAlerts
+        .filter((alert) => alert.severity === "high")
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 2); // Keep only the two newest
+
+      // Find the most recent alert for medium and low severity levels
+      securityAlerts.slice(-50).forEach((alert) => {
+        if (alert.severity !== "high") {
+          // Skip high severity, we handled those separately
+          if (
+            !alertsBySeverity[alert.severity] ||
+            new Date(alert.timestamp) >
+              new Date(alertsBySeverity[alert.severity].timestamp)
+          ) {
+            alertsBySeverity[alert.severity] = alert;
+          }
+        }
+      });
+
+      // Combine the alerts
+      const result = [...highSeverityAlerts];
+
+      // Add the other severity levels if they exist
+      Object.values(alertsBySeverity).forEach((alert) => {
+        if (alert !== null) {
+          result.push(alert);
+        }
+      });
+
+      return result;
+    })();
+
     // Return all stats
     res.json({
       xss: xssCache.stats,
@@ -307,7 +348,7 @@ router.get("/dashboard", async (req, res) => {
         ...ddosCache.stats,
         isMonitoring: ddosCache.isMonitoring,
       },
-      alerts: securityAlerts.slice(-10), // Only the 10 most recent alerts
+      alerts: filteredAlerts, // Return filtered alerts instead of all recent alerts
     });
   } catch (error) {
     console.error("Error getting dashboard stats:", error);
