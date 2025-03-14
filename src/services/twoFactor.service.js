@@ -19,10 +19,20 @@ export const twoFactorService = {
   },
 
   enable: async (address) => {
-    const response = await axios.post(`${API_URL}/2fa/enable`, {
-      walletAddress: address,
-    });
-    return response.data;
+    try {
+      const response = await axios.post(`${API_URL}/2fa/enable`, {
+        walletAddress: address,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error enabling 2FA:", error);
+      // Return an object with success: false to make error handling consistent
+      return {
+        success: false,
+        message:
+          error.response?.data?.message || error.message || "Network error",
+      };
+    }
   },
 
   is2FAEnabled: async (address) => {
