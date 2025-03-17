@@ -11,6 +11,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import { useAuth } from "../../contexts/AuthContext";
 import { connectWallet } from "../../utils/web3";
@@ -22,6 +24,7 @@ const PatientForm = () => {
   const { user } = useAuth();
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isEmergency, setIsEmergency] = useState(false);
   const [formData, setFormData] = useState({
     patientId: "",
     patientName: "",
@@ -64,6 +67,7 @@ const PatientForm = () => {
       console.log("Sending data to MongoDB:", {
         ...formData,
         doctorAddress: user.address,
+        isEmergency,
       });
 
       // First, save to MongoDB and add to batch
@@ -77,6 +81,7 @@ const PatientForm = () => {
           body: JSON.stringify({
             ...formData,
             doctorAddress: user.address,
+            isEmergency,
           }),
         }
       );
@@ -88,10 +93,14 @@ const PatientForm = () => {
 
       const data = await response.json();
 
-      // Only if batch is processed (10 patients), do blockchain transaction
-      if (data.batchProcessed) {
+      // For emergency patients or when batch is processed, do blockchain transaction
+      if (isEmergency || data.batchProcessed) {
         try {
-          console.log("Batch complete - connecting to wallet...");
+          console.log(
+            isEmergency
+              ? "Emergency patient - connecting to wallet..."
+              : "Batch complete - connecting to wallet..."
+          );
 
           if (!window.ethereum) {
             throw new Error(
@@ -108,7 +117,11 @@ const PatientForm = () => {
           // We're sending a small amount to the user's own address (self-transfer)
           // This ensures the transaction will be accepted by MetaMask
           const userAddress = await signer.getAddress();
-          console.log("Creating guaranteed successful transaction...");
+          console.log(
+            isEmergency
+              ? "Creating emergency transaction..."
+              : "Creating batch transaction..."
+          );
 
           const tx = await signer.sendTransaction({
             to: userAddress, // Send to self
@@ -116,10 +129,12 @@ const PatientForm = () => {
             gasLimit: 21000, // Standard gas limit for simple transfers
           });
 
-          console.log("Batch transaction sent:", tx.hash);
+          console.log("Transaction sent:", tx.hash);
           await tx.wait();
           console.log(
-            "Batch transaction confirmed - Block created successfully"
+            isEmergency
+              ? "Emergency transaction confirmed - Block created successfully"
+              : "Batch transaction confirmed - Block created successfully"
           );
         } catch (err) {
           console.error("Blockchain transaction error:", err);
@@ -128,7 +143,11 @@ const PatientForm = () => {
         }
       }
 
-      setSuccess("Patient registered successfully!");
+      setSuccess(
+        isEmergency
+          ? "Emergency patient registered and recorded on blockchain successfully!"
+          : "Patient registered successfully!"
+      );
 
       // Reset form and get new patient ID
       setFormData({
@@ -141,6 +160,7 @@ const PatientForm = () => {
         clinicalDescription: "",
         disease: "",
       });
+      setIsEmergency(false);
       await fetchPatientId();
 
       // Trigger batch progress refresh
@@ -157,6 +177,10 @@ const PatientForm = () => {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const toggleEmergency = () => {
+    setIsEmergency(!isEmergency);
   };
 
   return (
@@ -182,6 +206,37 @@ const PatientForm = () => {
 
           <form onSubmit={handleSubmit}>
             <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={isEmergency}
+                      onChange={toggleEmergency}
+                      color="error"
+                    />
+                  }
+                  label={
+                    <Typography
+                      variant="body1"
+                      color={isEmergency ? "error.main" : "text.primary"}
+                      fontWeight={isEmergency ? "bold" : "normal"}
+                    >
+                      {isEmergency
+                        ? "EMERGENCY PATIENT - Immediate blockchain recording"
+                        : "Regular Patient"}
+                    </Typography>
+                  }
+                  sx={{
+                    p: 1,
+                    border: isEmergency ? "1px solid #f44336" : "none",
+                    borderRadius: 1,
+                    backgroundColor: isEmergency
+                      ? "rgba(244, 67, 54, 0.08)"
+                      : "transparent",
+                  }}
+                />
+              </Grid>
+
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -275,11 +330,13 @@ const PatientForm = () => {
                 <Button
                   type="submit"
                   variant="contained"
-                  color="primary"
+                  color={isEmergency ? "error" : "primary"}
                   fullWidth
                   size="large"
                 >
-                  Register Patient
+                  {isEmergency
+                    ? "Register Emergency Patient"
+                    : "Register Patient"}
                 </Button>
               </Grid>
             </Grid>

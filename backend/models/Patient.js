@@ -39,6 +39,10 @@ const patientSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  isEmergency: {
+    type: Boolean,
+    default: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

@@ -143,6 +143,14 @@ router.post("/", async (req, res) => {
     const patientData = req.body;
     console.log("Received patient data:", patientData);
 
+    // Check if this is an emergency patient
+    const isEmergency = patientData.isEmergency || false;
+    console.log(
+      isEmergency
+        ? "EMERGENCY PATIENT - Bypassing batch"
+        : "Regular patient - Adding to batch"
+    );
+
     // Encrypt data
     const encryptedData = {
       patientId: patientData.patientId,
@@ -154,6 +162,7 @@ router.post("/", async (req, res) => {
       clinicalDescription: encrypt(patientData.clinicalDescription),
       disease: encrypt(patientData.disease),
       doctorAddress: patientData.doctorAddress,
+      isEmergency: isEmergency, // Store emergency status
     };
 
     console.log("Encrypted data structure:", Object.keys(encryptedData));
@@ -162,24 +171,51 @@ router.post("/", async (req, res) => {
     const patient = await Patient.create(encryptedData);
     console.log("Saved patient data:", patient);
 
-    // Add to rollup batch
-    const batchResult = await PatientRollup.addToBatch({
-      ...patientData,
-      doctorAddress: patientData.doctorAddress,
-      dateOfBirth: patientData.dateOfBirth,
-      contactNumber: patientData.contactNumber,
-    });
+    let batchResult = null;
 
-    // Only trigger blockchain transaction if batch is complete
-    if (batchResult) {
-      // This will trigger MetaMask only once per 10 patients
+    // Only add to batch if not an emergency patient
+    if (!isEmergency) {
+      // Add to rollup batch
+      batchResult = await PatientRollup.addToBatch({
+        ...patientData,
+        doctorAddress: patientData.doctorAddress,
+        dateOfBirth: patientData.dateOfBirth,
+        contactNumber: patientData.contactNumber,
+      });
+
+      // Only trigger blockchain transaction if batch is complete
+      if (batchResult) {
+        // This will trigger MetaMask only once per 10 patients
+        await PatientBatch.create({
+          doctorAddress: patientData.doctorAddress,
+          patientsCount: batchResult.patients.length,
+          batchProof: batchResult.batchProof,
+          patients: batchResult.patients,
+        });
+        console.log("Patient batch processed:", batchResult);
+      }
+    } else {
+      // For emergency patients, create an individual batch record immediately
+      const emergencyPatient = {
+        patientId: patientData.patientId,
+        registrationTime: Date.now(),
+      };
+
+      // Create emergency batch with just this patient
       await PatientBatch.create({
         doctorAddress: patientData.doctorAddress,
-        patientsCount: batchResult.patients.length,
-        batchProof: batchResult.batchProof,
-        patients: batchResult.patients,
+        patientsCount: 1,
+        batchProof: `emergency_${Date.now()}_${patientData.patientId}`,
+        patients: [emergencyPatient],
+        isEmergency: true,
       });
-      console.log("Patient batch processed:", batchResult);
+      console.log("Emergency patient processed immediately");
+
+      // Set batch result to simulate a processed batch
+      batchResult = {
+        emergency: true,
+        patients: [emergencyPatient],
+      };
     }
 
     res.json({
@@ -192,6 +228,7 @@ router.post("/", async (req, res) => {
         patientId: patient.patientId,
       },
       batchProcessed: !!batchResult,
+      isEmergency: isEmergency,
     });
   } catch (error) {
     console.error("Error saving patient:", error);
