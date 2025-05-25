@@ -1,17 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import {
-  Box,
-  Button,
-  Typography,
-  Container,
-  Alert,
-  Paper,
-  Card,
-  CardContent,
-  CardMedia,
-} from "@mui/material";
-import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
+import { Shield } from "lucide-react";
+import { LoginForm } from "../login-form";
 
 const Login = () => {
   const { login } = useAuth();
@@ -33,156 +23,102 @@ const Login = () => {
   };
 
   return (
-    <Box
-      sx={{
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        background: "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
-        px: 2,
-      }}
-    >
-      <Container maxWidth="sm" className="animate-fade-in">
-        <Card
-          elevation={8}
-          sx={{
-            borderRadius: 4,
-            overflow: "hidden",
-            boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
-            transition: "transform 0.3s ease-in-out",
-            "&:hover": {
-              transform: "translateY(-10px)",
-            },
+    <div className="grid min-h-screen lg:grid-cols-2">
+      <div className="flex flex-col gap-4 p-6 md:p-10">
+        <div className="flex justify-center gap-2 md:justify-start">
+          <div className="flex items-center gap-2 font-medium text-gray-900">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-600 text-white">
+              <Shield className="size-4" />
+            </div>
+            ZKP Health
+          </div>
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="w-full max-w-xs">
+            <LoginForm 
+              onLogin={handleLogin}
+              loading={loading}
+              error={error}
+            />
+          </div>
+        </div>
+      </div>
+      <div className="relative hidden bg-gray-50 lg:block">
+        {/* Background Image */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: 'url(/healthcare-hero.jpg)',
           }}
-        >
-          <CardMedia
-            sx={{
-              height: 120,
-              bgcolor: "primary.main",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              position: "relative",
-              overflow: "hidden",
-              "&::after": {
-                content: '""',
-                position: "absolute",
-                width: "100%",
-                height: "100%",
-                background:
-                  "linear-gradient(45deg, rgba(46, 125, 50, 0.7) 0%, rgba(76, 175, 80, 0.4) 100%)",
-                zIndex: 1,
-              },
-            }}
-          >
-            <Box
-              sx={{
-                zIndex: 2,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                position: "relative",
-              }}
-            >
-              <LocalHospitalIcon
-                sx={{
-                  fontSize: 60,
-                  color: "white",
-                  mb: 1,
-                  animation: "pulse 2s infinite",
-                  "@keyframes pulse": {
-                    "0%": { transform: "scale(1)", opacity: 0.8 },
-                    "50%": { transform: "scale(1.2)", opacity: 1 },
-                    "100%": { transform: "scale(1)", opacity: 0.8 },
-                  },
-                }}
-              />
-            </Box>
-          </CardMedia>
-          <CardContent sx={{ p: 4 }}>
-            <Typography
-              component="h1"
-              variant="h4"
-              align="center"
-              gutterBottom
-              sx={{
-                fontWeight: 700,
-                color: "primary.main",
-                mb: 3,
-                animation: "slideUp 0.8s ease-out",
-                "@keyframes slideUp": {
-                  "0%": { transform: "translateY(20px)", opacity: 0 },
-                  "100%": { transform: "translateY(0)", opacity: 1 },
-                },
-              }}
-            >
-              DIGIMED Healthcare
-            </Typography>
+        ></div>
+        
+        {/* Gradient Overlay for better text readability */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent"></div>
+        
+        {/* Content */}
+        <div className="relative h-full flex flex-col justify-between p-8 text-white">
+          {/* Top section with logo/branding */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+              <Shield className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">ZKP Health</h3>
+              <p className="text-sm text-white/80">Secure • Private • Verified</p>
+            </div>
+          </div>
 
-            <Typography
-              variant="subtitle1"
-              align="center"
-              gutterBottom
-              sx={{
-                mb: 3,
-                color: "text.secondary",
-                animation: "slideUp 0.8s ease-out 0.2s both",
-              }}
-            >
-              Secure Health Data Management System
-            </Typography>
+          {/* Main content */}
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <h2 className="text-4xl font-bold leading-tight">
+                Secure Healthcare
+                <br />
+                <span className="text-blue-300">Data Management</span>
+              </h2>
+              <p className="text-xl text-white/90 max-w-md">
+                Experience the future of healthcare with Zero-Knowledge Proof technology
+              </p>
+            </div>
 
-            {error && (
-              <Alert
-                severity="error"
-                sx={{
-                  width: "100%",
-                  mb: 3,
-                  animation: "shake 0.5s cubic-bezier(.36,.07,.19,.97) both",
-                }}
-              >
-                {error}
-              </Alert>
-            )}
+            {/* Feature highlights */}
+            <div className="space-y-4">
+              <div className="flex items-start gap-4 p-4 bg-white/10 rounded-lg backdrop-blur-sm">
+                <div className="w-3 h-3 bg-green-400 rounded-full mt-1.5 flex-shrink-0"></div>
+                <div>
+                  <h4 className="font-semibold text-white">End-to-End Encryption</h4>
+                  <p className="text-white/80 text-sm">Your medical data remains private and secure</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-4 p-4 bg-white/10 rounded-lg backdrop-blur-sm">
+                <div className="w-3 h-3 bg-blue-400 rounded-full mt-1.5 flex-shrink-0"></div>
+                <div>
+                  <h4 className="font-semibold text-white">Blockchain Verified</h4>
+                  <p className="text-white/80 text-sm">Immutable records on the blockchain</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-4 p-4 bg-white/10 rounded-lg backdrop-blur-sm">
+                <div className="w-3 h-3 bg-purple-400 rounded-full mt-1.5 flex-shrink-0"></div>
+                <div>
+                  <h4 className="font-semibold text-white">Zero-Knowledge Proofs</h4>
+                  <p className="text-white/80 text-sm">Prove eligibility without revealing data</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-            <Button
-              variant="contained"
-              color="primary"
-              size="large"
-              fullWidth
-              onClick={handleLogin}
-              disabled={loading}
-              sx={{
-                py: 1.5,
-                mt: 2,
-                fontWeight: 600,
-                animation: "slideUp 0.8s ease-out 0.4s both",
-                position: "relative",
-                overflow: "hidden",
-                "&::after": {
-                  content: '""',
-                  position: "absolute",
-                  width: "100%",
-                  height: "100%",
-                  top: 0,
-                  left: "-100%",
-                  background:
-                    "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%)",
-                  transition: "all 0.6s",
-                },
-                "&:hover::after": {
-                  left: "100%",
-                },
-              }}
-            >
-              {loading ? "Connecting..." : "Connect with MetaMask"}
-            </Button>
-          </CardContent>
-        </Card>
-      </Container>
-    </Box>
+          {/* Bottom quote/testimonial */}
+          <div className="p-4 bg-white/10 rounded-lg backdrop-blur-sm border border-white/20">
+            <p className="text-white/90 italic text-sm">
+              "Revolutionizing healthcare data management with cutting-edge cryptographic technology."
+            </p>
+            <p className="text-white/70 text-xs mt-2">— Healthcare Innovation Team</p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
