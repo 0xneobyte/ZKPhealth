@@ -18,7 +18,29 @@ import {
   CardContent,
   Fade,
   DialogActions,
+  Container,
+  CardHeader,
+  Divider,
+  Avatar,
+  Chip,
+  alpha,
 } from "@mui/material";
+import {
+  Dashboard as DashboardIcon,
+  PersonAdd as PersonAddIcon,
+  Search as SearchIcon,
+  Assignment as AssignmentIcon,
+  LocalHospital as HospitalIcon,
+  Security as SecurityIcon,
+  CheckCircle as CheckCircleIcon,
+  Person as PersonIcon,
+  Phone as PhoneIcon,
+  Email as EmailIcon,
+  LocationOn as LocationIcon,
+  TrendingUp as TrendingUpIcon,
+  Schedule as ScheduleIcon,
+  Assessment as AssessmentIcon,
+} from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import PatientForm from "../patients/PatientForm";
 import PatientSearch from "../patients/PatientSearch";
@@ -371,509 +393,1039 @@ const Dashboard = () => {
   if (user?.role === "doctor") {
     return (
       <>
-        <Fade in={true} timeout={800}>
-          <Box>
-            <Paper
-              elevation={0}
-              sx={{
-                p: 3,
-                mb: 3,
-                borderRadius: 2,
-                backgroundColor: "#f9faf5",
-                border: "1px solid #e0e0e0",
-                transition: "all 0.3s ease",
-                "&:hover": {
-                  boxShadow: "0 5px 15px rgba(0,0,0,0.05)",
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+          {/* Modern Gradient Header */}
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: 4,
+              mb: 4,
+              overflow: 'hidden',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              position: 'relative',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Ccircle cx="30" cy="30" r="2"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+              },
+            }}
+          >
+            <Box sx={{ position: 'relative', zIndex: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <Avatar
+                    sx={{
+                      width: 64,
+                      height: 64,
+                      bgcolor: alpha('#ffffff', 0.2),
+                      backdropFilter: 'blur(10px)',
+                    }}
+                  >
+                    <HospitalIcon sx={{ fontSize: 32 }} />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+                      Doctor Dashboard
+                    </Typography>
+                    <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                      Manage patients, submit claims, and monitor healthcare data
+                    </Typography>
+                  </Box>
+                </Box>
+                <Button
+                  variant="outlined"
+                  onClick={logout}
+                  startIcon={<PersonIcon />}
+                  sx={{
+                    borderColor: alpha('#ffffff', 0.3),
+                    color: 'white',
+                    '&:hover': {
+                      borderColor: 'white',
+                      bgcolor: alpha('#ffffff', 0.1),
+                    },
+                  }}
+                >
+                  Logout
+                </Button>
+              </Box>
+            </Box>
+          </Paper>
+
+          {/* Modern Navigation Tabs */}
+          <Paper
+            elevation={0}
+            sx={{ 
+              borderRadius: 3,
+              mb: 4,
+              overflow: 'hidden',
+              background: 'white',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+            }}
+          >
+            <Tabs 
+              value={tabValue} 
+              onChange={handleTabChange} 
+              sx={{ 
+                '& .MuiTabs-indicator': {
+                  height: 4,
+                  borderRadius: '4px 4px 0 0',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                },
+                '& .MuiTab-root': {
+                  minHeight: 72,
+                  fontWeight: 600,
+                  fontSize: '0.95rem',
+                  textTransform: 'none',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    bgcolor: alpha('#667eea', 0.05),
+                  },
+                  '&.Mui-selected': {
+                    color: '#667eea',
+                  },
                 },
               }}
             >
-              <Tabs
-                value={tabValue}
-                onChange={handleTabChange}
-                sx={{
-                  mb: 3,
-                  "& .MuiTabs-indicator": {
-                    backgroundColor: "primary.main",
-                    height: 3,
-                    borderRadius: "3px 3px 0 0",
-                  },
-                }}
-                centered
-                variant="fullWidth"
-              >
-                <Tab
-                  label="Profile"
-                  sx={{
-                    fontWeight: 500,
-                    transition: "all 0.3s ease",
-                    "&.Mui-selected": {
-                      color: "primary.main",
-                      fontWeight: 600,
-                    },
-                  }}
-                />
-                <Tab
-                  label="Register Patient"
-                  sx={{
-                    fontWeight: 500,
-                    transition: "all 0.3s ease",
-                    "&.Mui-selected": {
-                      color: "primary.main",
-                      fontWeight: 600,
-                    },
-                  }}
-                />
-                <Tab
-                  label="Search Patient"
-                  sx={{
-                    fontWeight: 500,
-                    transition: "all 0.3s ease",
-                    "&.Mui-selected": {
-                      color: "primary.main",
-                      fontWeight: 600,
-                    },
-                  }}
-                />
-                <Tab
-                  label="Submit Claim"
-                  sx={{
-                    fontWeight: 500,
-                    transition: "all 0.3s ease",
-                    "&.Mui-selected": {
-                      color: "primary.main",
-                      fontWeight: 600,
-                    },
-                  }}
-                />
-              </Tabs>
-            </Paper>
+              <Tab 
+                icon={<DashboardIcon />} 
+                label="Profile" 
+                iconPosition="start"
+                sx={{ gap: 1 }}
+              />
+              <Tab 
+                icon={<PersonAddIcon />} 
+                label="Register Patient" 
+                iconPosition="start"
+                sx={{ gap: 1 }}
+              />
+              <Tab 
+                icon={<SearchIcon />} 
+                label="Search Patient" 
+                iconPosition="start"
+                sx={{ gap: 1 }}
+              />
+              <Tab 
+                icon={<AssignmentIcon />} 
+                label="Submit Claim" 
+                iconPosition="start"
+                sx={{ gap: 1 }}
+              />
+            </Tabs>
+          </Paper>
 
-            {tabValue === 0 ? (
-              <Fade in={true} timeout={500}>
-                <Card sx={{ borderRadius: 2 }}>
-                  <CardContent sx={{ p: 4 }}>
-                    <Typography
-                      variant="h5"
-                      gutterBottom
-                      color="primary"
-                      sx={{ fontWeight: 600, mb: 3 }}
-                    >
-                      Doctor Profile
-                    </Typography>
-                    <Box sx={{ mb: 3 }}>
-                      <Typography
-                        variant="body1"
-                        gutterBottom
-                        sx={{ display: "flex", alignItems: "center" }}
-                      >
-                        <strong style={{ marginRight: "8px" }}>
-                          Wallet Address:
-                        </strong>
-                        <span
-                          style={{
-                            fontFamily: "monospace",
-                            backgroundColor: "#f5f5f5",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
+          {/* Profile Tab - Modern Doctor Dashboard */}
+          {tabValue === 0 && (
+            <Fade in={true} timeout={600}>
+              <Grid container spacing={3}>
+                {/* Doctor Profile Card */}
+                <Grid item xs={12} md={4}>
+                  <Card 
+                    elevation={0}
+                    sx={{ 
+                      borderRadius: 3,
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        width: 100,
+                        height: 100,
+                        background: alpha('#ffffff', 0.1),
+                        borderRadius: '50%',
+                        transform: 'translate(30%, -30%)',
+                      },
+                    }}
+                  >
+                    <CardContent sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <Avatar
+                          sx={{
+                            width: 48,
+                            height: 48,
+                            bgcolor: alpha('#ffffff', 0.2),
+                            mr: 2,
                           }}
                         >
-                          {user?.address}
-                        </span>
+                          <HospitalIcon />
+                        </Avatar>
+                        <Box>
+                          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                            Dr. {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)}
+                          </Typography>
+                          <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                            Healthcare Provider
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          opacity: 0.8,
+                          fontFamily: 'monospace',
+                          fontSize: '0.8rem',
+                          wordBreak: 'break-all',
+                        }}
+                      >
+                        {user?.address}
                       </Typography>
-                      <Typography variant="body1" gutterBottom>
-                        <strong>Role:</strong>{" "}
-                        {user?.role.charAt(0).toUpperCase() +
-                          user?.role.slice(1)}
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* Security Status Card */}
+                <Grid item xs={12} md={8}>
+                  <Card 
+                    elevation={0}
+                    sx={{ 
+                      borderRadius: 3,
+                      background: 'white',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                      height: '100%',
+                    }}
+                  >
+                    <CardHeader
+                      avatar={
+                        <Avatar sx={{ bgcolor: is2FAEnabled ? '#4caf50' : '#ff9800' }}>
+                          <SecurityIcon />
+                        </Avatar>
+                      }
+                      title={
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                          Account Security
+                        </Typography>
+                      }
+                      subheader={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                          <Chip
+                            label={is2FAEnabled ? "2FA Enabled" : "2FA Disabled"}
+                            size="small"
+                            icon={is2FAEnabled ? <CheckCircleIcon /> : <SecurityIcon />}
+                            sx={{
+                              bgcolor: is2FAEnabled 
+                                ? alpha('#4caf50', 0.1) 
+                                : alpha('#ff9800', 0.1),
+                              color: is2FAEnabled ? '#4caf50' : '#ff9800',
+                              fontWeight: 600,
+                              '& .MuiChip-icon': {
+                                fontSize: '1rem',
+                              },
+                            }}
+                          />
+                        </Box>
+                      }
+                      sx={{ pb: 1 }}
+                    />
+                    <Divider />
+                    <CardContent>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        Enhance your account security with two-factor authentication. 
+                        This adds an extra layer of protection to your medical data and patient information.
                       </Typography>
-                    </Box>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={handle2FASetup}
-                      disabled={is2FAEnabled || isLoading}
-                      sx={{
-                        mt: 2,
-                        transition: "all 0.3s ease",
-                        "&:disabled": {
-                          backgroundColor: "success.light",
-                          color: "white",
+                      <Button
+                        variant={is2FAEnabled ? "outlined" : "contained"}
+                        color={is2FAEnabled ? "success" : "primary"}
+                        onClick={handle2FASetup}
+                        disabled={is2FAEnabled || isLoading}
+                        startIcon={is2FAEnabled ? <CheckCircleIcon /> : <SecurityIcon />}
+                        sx={{
+                          fontWeight: 600,
+                          transition: "all 0.3s ease",
+                        }}
+                      >
+                        {is2FAEnabled ? (
+                          "2FA Enabled ✓"
+                        ) : isLoading ? (
+                          <Box sx={{ display: "flex", alignItems: "center" }}>
+                            <CircularProgress
+                              size={20}
+                              color="inherit"
+                              sx={{ mr: 1 }}
+                            />
+                            Setting up...
+                          </Box>
+                        ) : (
+                          "Enable 2FA Security"
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* Quick Stats Cards */}
+                <Grid item xs={12}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6} sm={3}>
+                      <Card 
+                        elevation={0}
+                        sx={{ 
+                          borderRadius: 3,
+                          background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                          color: 'white',
+                          textAlign: 'center',
+                          p: 2,
+                        }}
+                      >
+                        <PersonAddIcon sx={{ fontSize: 32, mb: 1 }} />
+                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                          Register
+                        </Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                          New Patients
+                        </Typography>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Card 
+                        elevation={0}
+                        sx={{ 
+                          borderRadius: 3,
+                          background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                          color: '#333',
+                          textAlign: 'center',
+                          p: 2,
+                        }}
+                      >
+                        <SearchIcon sx={{ fontSize: 32, mb: 1 }} />
+                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                          Search
+                        </Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                          Patient Records
+                        </Typography>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Card 
+                        elevation={0}
+                        sx={{ 
+                          borderRadius: 3,
+                          background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+                          color: '#333',
+                          textAlign: 'center',
+                          p: 2,
+                        }}
+                      >
+                        <AssignmentIcon sx={{ fontSize: 32, mb: 1 }} />
+                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                          Submit
+                        </Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                          Insurance Claims
+                        </Typography>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Card 
+                        elevation={0}
+                        sx={{ 
+                          borderRadius: 3,
+                          background: 'linear-gradient(135deg, #d299c2 0%, #fef9d7 100%)',
+                          color: '#333',
+                          textAlign: 'center',
+                          p: 2,
+                        }}
+                      >
+                        <AssessmentIcon sx={{ fontSize: 32, mb: 1 }} />
+                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                          Monitor
+                        </Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                          Health Data
+                        </Typography>
+                      </Card>
+                    </Grid>
+                  </Grid>
+                </Grid>
+
+                {/* Quick Actions */}
+                <Grid item xs={12}>
+                  <Card 
+                    elevation={0}
+                    sx={{ 
+                      borderRadius: 3,
+                      background: 'white',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    <CardHeader
+                      title={
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                          Quick Actions
+                        </Typography>
+                      }
+                      sx={{ pb: 1 }}
+                    />
+                    <Divider />
+                    <CardContent>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6} md={3}>
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            startIcon={<PersonAddIcon />}
+                            onClick={() => setTabValue(1)}
+                            sx={{
+                              py: 1.5,
+                              borderColor: alpha('#667eea', 0.3),
+                              color: '#667eea',
+                              '&:hover': {
+                                borderColor: '#667eea',
+                                bgcolor: alpha('#667eea', 0.05),
+                              },
+                            }}
+                          >
+                            Register Patient
+                          </Button>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            startIcon={<SearchIcon />}
+                            onClick={() => setTabValue(2)}
+                            sx={{
+                              py: 1.5,
+                              borderColor: alpha('#4facfe', 0.3),
+                              color: '#4facfe',
+                              '&:hover': {
+                                borderColor: '#4facfe',
+                                bgcolor: alpha('#4facfe', 0.05),
+                              },
+                            }}
+                          >
+                            Search Patient
+                          </Button>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            startIcon={<AssignmentIcon />}
+                            onClick={() => setTabValue(3)}
+                            sx={{
+                              py: 1.5,
+                              borderColor: alpha('#f5576c', 0.3),
+                              color: '#f5576c',
+                              '&:hover': {
+                                borderColor: '#f5576c',
+                                bgcolor: alpha('#f5576c', 0.05),
+                              },
+                            }}
+                          >
+                            Submit Claim
+                          </Button>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            startIcon={<TrendingUpIcon />}
+                            sx={{
+                              py: 1.5,
+                              borderColor: alpha('#764ba2', 0.3),
+                              color: '#764ba2',
+                              '&:hover': {
+                                borderColor: '#764ba2',
+                                bgcolor: alpha('#764ba2', 0.05),
+                              },
+                            }}
+                          >
+                            View Analytics
+                          </Button>
+                        </Grid>
+                      </Grid>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Fade>
+          )}
+          {/* Register Patient Tab */}
+          {tabValue === 1 && (
+            <Fade in={true} timeout={600}>
+              <Card 
+                elevation={0}
+                sx={{ 
+                  borderRadius: 3,
+                  background: 'white',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                }}
+              >
+                <CardHeader
+                  avatar={
+                    <Avatar sx={{ bgcolor: '#667eea' }}>
+                      <PersonAddIcon />
+                    </Avatar>
+                  }
+                  title={
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      Register New Patient
+                    </Typography>
+                  }
+                  subheader="Add a new patient to the healthcare system"
+                  sx={{ pb: 1 }}
+                />
+                <Divider />
+                <CardContent>
+                  <PatientForm />
+                </CardContent>
+              </Card>
+            </Fade>
+          )}
+
+          {/* Search Patient Tab */}
+          {tabValue === 2 && (
+            <Fade in={true} timeout={600}>
+              <Card 
+                elevation={0}
+                sx={{ 
+                  borderRadius: 3,
+                  background: 'white',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                }}
+              >
+                <CardHeader
+                  avatar={
+                    <Avatar sx={{ bgcolor: '#4facfe' }}>
+                      <SearchIcon />
+                    </Avatar>
+                  }
+                  title={
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      Search Patient Records
+                    </Typography>
+                  }
+                  subheader="Find and access existing patient information"
+                  sx={{ pb: 1 }}
+                />
+                <Divider />
+                <CardContent>
+                  <PatientSearch />
+                </CardContent>
+              </Card>
+            </Fade>
+          )}
+          {/* Submit Claim Tab */}
+          {tabValue === 3 && (
+            <Fade in={true} timeout={600}>
+              <Card 
+                elevation={0}
+                sx={{ 
+                  borderRadius: 3,
+                  background: 'white',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                  maxWidth: 800,
+                  mx: 'auto',
+                }}
+              >
+                <CardHeader
+                  avatar={
+                    <Avatar sx={{ bgcolor: '#f5576c' }}>
+                      <AssignmentIcon />
+                    </Avatar>
+                  }
+                  title={
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      Submit Insurance Claim
+                    </Typography>
+                  }
+                  subheader="Create and submit insurance claims for patient treatments"
+                  sx={{ pb: 1 }}
+                />
+                <Divider />
+                <CardContent sx={{ p: 4 }}>
+                  <form onSubmit={submitClaim}>
+                    <Grid container spacing={3}>
+                      {/* Patient Information Section */}
+                      <Grid item xs={12}>
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1, 
+                            mb: 2,
+                            p: 2,
+                            bgcolor: alpha('#667eea', 0.05),
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor: alpha('#667eea', 0.1),
+                          }}
+                        >
+                          <PersonIcon sx={{ color: '#667eea' }} />
+                          <Typography
+                            variant="subtitle1"
+                            sx={{ fontWeight: 600, color: '#667eea' }}
+                          >
+                            Patient Information
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Patient ID"
+                          name="patientId"
+                          value={formData.patientId}
+                          onChange={(e) => {
+                            const newId = e.target.value;
+                            setFormData({ ...formData, patientId: newId });
+                            if (newId.length > 0) {
+                              fetchPatientDetails(newId);
+                            }
+                          }}
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Patient Name"
+                          name="patientName"
+                          value={formData.patientName}
+                          InputProps={{
+                            readOnly: true,
+                          }}
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Date of Birth"
+                          name="dateOfBirth"
+                          type="date"
+                          value={formData.dateOfBirth}
+                          InputProps={{
+                            readOnly: true,
+                          }}
+                          InputLabelProps={{ shrink: true }}
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          select
+                          fullWidth
+                          label="Gender"
+                          name="gender"
+                          value={formData.gender}
+                          InputProps={{
+                            readOnly: true,
+                          }}
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        >
+                          <MenuItem value="male">Male</MenuItem>
+                          <MenuItem value="female">Female</MenuItem>
+                          <MenuItem value="other">Other</MenuItem>
+                        </TextField>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Contact Number"
+                          name="contactNumber"
+                          value={formData.contactNumber}
+                          InputProps={{
+                            readOnly: true,
+                          }}
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+
+                      {/* Insurance Information Section */}
+                      <Grid item xs={12}>
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1, 
+                            mb: 2,
+                            mt: 2,
+                            p: 2,
+                            bgcolor: alpha('#4facfe', 0.05),
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor: alpha('#4facfe', 0.1),
+                          }}
+                        >
+                          <SecurityIcon sx={{ color: '#4facfe' }} />
+                          <Typography
+                            variant="subtitle1"
+                            sx={{ fontWeight: 600, color: '#4facfe' }}
+                          >
+                            Insurance Information
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Policy Number"
+                          name="policyNumber"
+                          value={formData.policyNumber}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              policyNumber: e.target.value,
+                            })
+                          }
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Insurance Provider"
+                          name="insuranceProvider"
+                          value={formData.insuranceProvider}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              insuranceProvider: e.target.value,
+                            })
+                          }
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          select
+                          fullWidth
+                          label="Claim Type"
+                          name="claimType"
+                          value={formData.claimType}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              claimType: e.target.value,
+                            })
+                          }
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        >
+                          <MenuItem value="inpatient">Inpatient</MenuItem>
+                          <MenuItem value="outpatient">Outpatient</MenuItem>
+                          <MenuItem value="daycare">Daycare</MenuItem>
+                        </TextField>
+                      </Grid>
+
+                      {/* Treatment Information Section */}
+                      <Grid item xs={12}>
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1, 
+                            mb: 2,
+                            mt: 2,
+                            p: 2,
+                            bgcolor: alpha('#f5576c', 0.05),
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor: alpha('#f5576c', 0.1),
+                          }}
+                        >
+                          <HospitalIcon sx={{ color: '#f5576c' }} />
+                          <Typography
+                            variant="subtitle1"
+                            sx={{ fontWeight: 600, color: '#f5576c' }}
+                          >
+                            Treatment Information
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Admission Date"
+                          name="admissionDate"
+                          type="date"
+                          value={formData.admissionDate}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              admissionDate: e.target.value,
+                            })
+                          }
+                          InputLabelProps={{ shrink: true }}
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Discharge Date"
+                          name="dischargeDate"
+                          type="date"
+                          value={formData.dischargeDate}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              dischargeDate: e.target.value,
+                            })
+                          }
+                          InputLabelProps={{ shrink: true }}
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          label="Diagnosis"
+                          name="diagnosis"
+                          multiline
+                          rows={3}
+                          value={formData.diagnosis}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              diagnosis: e.target.value,
+                            })
+                          }
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+
+                      {/* Cost Breakdown Section */}
+                      <Grid item xs={12}>
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1, 
+                            mb: 2,
+                            mt: 2,
+                            p: 2,
+                            bgcolor: alpha('#764ba2', 0.05),
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor: alpha('#764ba2', 0.1),
+                          }}
+                        >
+                          <TrendingUpIcon sx={{ color: '#764ba2' }} />
+                          <Typography
+                            variant="subtitle1"
+                            sx={{ fontWeight: 600, color: '#764ba2' }}
+                          >
+                            Cost Breakdown
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Treatment Cost"
+                          name="treatmentCost"
+                          type="number"
+                          value={formData.treatmentCost}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              treatmentCost: e.target.value,
+                            })
+                          }
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Room Charges"
+                          name="roomCharges"
+                          type="number"
+                          value={formData.roomCharges}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              roomCharges: e.target.value,
+                            })
+                          }
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Medication Charges"
+                          name="medicationCharges"
+                          type="number"
+                          value={formData.medicationCharges}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              medicationCharges: e.target.value,
+                            })
+                          }
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Consultation Fees"
+                          name="consultationFees"
+                          type="number"
+                          value={formData.consultationFees}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              consultationFees: e.target.value,
+                            })
+                          }
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Lab Test Charges"
+                          name="labTestCharges"
+                          type="number"
+                          value={formData.labTestCharges}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              labTestCharges: e.target.value,
+                            })
+                          }
+                          required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            },
+                          }}
+                        />
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        <Button
+                          type="submit"
+                          variant="contained"
+                          fullWidth
+                          size="large"
+                          sx={{
+                            py: 1.5,
+                            fontWeight: 600,
+                            mt: 3,
+                            borderRadius: 2,
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            transition: "all 0.3s ease",
+                            '&:hover': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)',
+                            },
+                          }}
+                        >
+                          Submit Insurance Claim
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </form>
+                  {claimStatus && (
+                    <Alert
+                      severity={
+                        claimStatus.includes("Error") ? "error" : "success"
+                      }
+                      sx={{ 
+                        mt: 3,
+                        borderRadius: 2,
+                        '& .MuiAlert-icon': {
+                          fontSize: '1.25rem',
                         },
                       }}
                     >
-                      {is2FAEnabled ? (
-                        "2FA Enabled ✓"
-                      ) : isLoading ? (
-                        <Box sx={{ display: "flex", alignItems: "center" }}>
-                          <CircularProgress
-                            size={20}
-                            color="inherit"
-                            sx={{ mr: 1 }}
-                          />
-                          Setting up...
-                        </Box>
-                      ) : (
-                        "Enable 2FA Security"
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Fade>
-            ) : tabValue === 1 ? (
-              <Fade in={true} timeout={500}>
-                <Box>
-                  <PatientForm />
-                </Box>
-              </Fade>
-            ) : tabValue === 2 ? (
-              <Fade in={true} timeout={500}>
-                <Box>
-                  <PatientSearch />
-                </Box>
-              </Fade>
-            ) : (
-              <Fade in={true} timeout={500}>
-                <Box sx={{ maxWidth: 800, mx: "auto" }}>
-                  <Card sx={{ borderRadius: 2 }}>
-                    <CardContent sx={{ p: 4 }}>
-                      <Typography
-                        variant="h5"
-                        gutterBottom
-                        color="primary"
-                        sx={{ fontWeight: 600, mb: 3 }}
-                      >
-                        Submit Insurance Claim
-                      </Typography>
-                      <form onSubmit={submitClaim}>
-                        <Grid container spacing={3}>
-                          <Grid item xs={12}>
-                            <Typography
-                              variant="subtitle1"
-                              gutterBottom
-                              sx={{ fontWeight: "bold", color: "primary.dark" }}
-                            >
-                              Patient Information
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Patient ID"
-                              name="patientId"
-                              value={formData.patientId}
-                              onChange={(e) => {
-                                const newId = e.target.value;
-                                setFormData({ ...formData, patientId: newId });
-                                if (newId.length > 0) {
-                                  // Or any other condition that indicates a complete ID
-                                  fetchPatientDetails(newId);
-                                }
-                              }}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Patient Name"
-                              name="patientName"
-                              value={formData.patientName}
-                              InputProps={{
-                                readOnly: true,
-                              }}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Date of Birth"
-                              name="dateOfBirth"
-                              type="date"
-                              value={formData.dateOfBirth}
-                              InputProps={{
-                                readOnly: true,
-                              }}
-                              InputLabelProps={{ shrink: true }}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              select
-                              fullWidth
-                              label="Gender"
-                              name="gender"
-                              value={formData.gender}
-                              InputProps={{
-                                readOnly: true,
-                              }}
-                              required
-                            >
-                              <MenuItem value="male">Male</MenuItem>
-                              <MenuItem value="female">Female</MenuItem>
-                              <MenuItem value="other">Other</MenuItem>
-                            </TextField>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Contact Number"
-                              name="contactNumber"
-                              value={formData.contactNumber}
-                              InputProps={{
-                                readOnly: true,
-                              }}
-                              required
-                            />
-                          </Grid>
+                      {claimStatus}
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            </Fade>
+          )}
 
-                          <Grid item xs={12}>
-                            <Typography
-                              variant="subtitle1"
-                              gutterBottom
-                              sx={{ fontWeight: "bold", mt: 2 }}
-                            >
-                              Insurance Information
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Policy Number"
-                              name="policyNumber"
-                              value={formData.policyNumber}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  policyNumber: e.target.value,
-                                })
-                              }
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Insurance Provider"
-                              name="insuranceProvider"
-                              value={formData.insuranceProvider}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  insuranceProvider: e.target.value,
-                                })
-                              }
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              select
-                              fullWidth
-                              label="Claim Type"
-                              name="claimType"
-                              value={formData.claimType}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  claimType: e.target.value,
-                                })
-                              }
-                              required
-                            >
-                              <MenuItem value="inpatient">Inpatient</MenuItem>
-                              <MenuItem value="outpatient">Outpatient</MenuItem>
-                              <MenuItem value="daycare">Daycare</MenuItem>
-                            </TextField>
-                          </Grid>
-
-                          <Grid item xs={12}>
-                            <Typography
-                              variant="subtitle1"
-                              gutterBottom
-                              sx={{ fontWeight: "bold", mt: 2 }}
-                            >
-                              Treatment Information
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Admission Date"
-                              name="admissionDate"
-                              type="date"
-                              value={formData.admissionDate}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  admissionDate: e.target.value,
-                                })
-                              }
-                              InputLabelProps={{ shrink: true }}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Discharge Date"
-                              name="dischargeDate"
-                              type="date"
-                              value={formData.dischargeDate}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  dischargeDate: e.target.value,
-                                })
-                              }
-                              InputLabelProps={{ shrink: true }}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12}>
-                            <TextField
-                              fullWidth
-                              label="Diagnosis"
-                              name="diagnosis"
-                              multiline
-                              rows={2}
-                              value={formData.diagnosis}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  diagnosis: e.target.value,
-                                })
-                              }
-                              required
-                            />
-                          </Grid>
-
-                          <Grid item xs={12}>
-                            <Typography
-                              variant="subtitle1"
-                              gutterBottom
-                              sx={{ fontWeight: "bold", mt: 2 }}
-                            >
-                              Cost Breakdown
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Treatment Cost"
-                              name="treatmentCost"
-                              type="number"
-                              value={formData.treatmentCost}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  treatmentCost: e.target.value,
-                                })
-                              }
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Room Charges"
-                              name="roomCharges"
-                              type="number"
-                              value={formData.roomCharges}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  roomCharges: e.target.value,
-                                })
-                              }
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Medication Charges"
-                              name="medicationCharges"
-                              type="number"
-                              value={formData.medicationCharges}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  medicationCharges: e.target.value,
-                                })
-                              }
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Consultation Fees"
-                              name="consultationFees"
-                              type="number"
-                              value={formData.consultationFees}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  consultationFees: e.target.value,
-                                })
-                              }
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Lab Test Charges"
-                              name="labTestCharges"
-                              type="number"
-                              value={formData.labTestCharges}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  labTestCharges: e.target.value,
-                                })
-                              }
-                              required
-                            />
-                          </Grid>
-
-                          <Grid item xs={12}>
-                            <Button
-                              type="submit"
-                              variant="contained"
-                              color="primary"
-                              fullWidth
-                              size="large"
-                              sx={{
-                                py: 1.5,
-                                fontWeight: 600,
-                                mt: 2,
-                                transition: "all 0.3s ease",
-                              }}
-                            >
-                              Submit Claim
-                            </Button>
-                          </Grid>
-                        </Grid>
-                      </form>
-                      {claimStatus && (
-                        <Alert
-                          severity={
-                            claimStatus.includes("Error") ? "error" : "success"
-                          }
-                          sx={{ mt: 3 }}
-                        >
-                          {claimStatus}
-                        </Alert>
-                      )}
-                    </CardContent>
-                  </Card>
-                </Box>
-              </Fade>
-            )}
-          </Box>
-        </Fade>
+        </Container>
 
         {/* 2FA Setup Dialog */}
         <Dialog
@@ -881,15 +1433,30 @@ const Dashboard = () => {
           onClose={() => setOpen2FADialog(false)}
           maxWidth="sm"
           fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+            },
+          }}
         >
-          <DialogTitle>
-            {step === 1
-              ? "Set Up Two-Factor Authentication"
-              : "Complete 2FA Setup"}
+          <DialogTitle sx={{ pb: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              {step === 1
+                ? "Set Up Two-Factor Authentication"
+                : "Complete 2FA Setup"}
+            </Typography>
           </DialogTitle>
-          <DialogContent>
+          <Divider />
+          <DialogContent sx={{ p: 3 }}>
             {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
+              <Alert 
+                severity="error" 
+                sx={{ 
+                  mb: 2,
+                  borderRadius: 2,
+                }}
+              >
                 {error}
               </Alert>
             )}
@@ -939,9 +1506,18 @@ const Dashboard = () => {
                       InputProps={{
                         readOnly: true,
                       }}
-                      sx={{ mb: 2, fontFamily: "monospace" }}
+                      sx={{ 
+                        mb: 2, 
+                        fontFamily: "monospace",
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                        },
+                      }}
                     />
-                    <Alert severity="warning">
+                    <Alert 
+                      severity="warning"
+                      sx={{ borderRadius: 2 }}
+                    >
                       Save this backup code in a secure location. You'll need it
                       if you lose access to your authenticator app.
                     </Alert>
@@ -961,7 +1537,12 @@ const Dashboard = () => {
                       .slice(0, 6);
                     setVerificationCode(value);
                   }}
-                  sx={{ mb: 2 }}
+                  sx={{ 
+                    mb: 2,
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                    },
+                  }}
                   inputProps={{
                     maxLength: 6,
                     pattern: "[0-9]*",
@@ -979,6 +1560,7 @@ const Dashboard = () => {
                   <Button
                     onClick={() => setOpen2FADialog(false)}
                     color="secondary"
+                    sx={{ borderRadius: 2 }}
                   >
                     Cancel
                   </Button>
@@ -987,6 +1569,7 @@ const Dashboard = () => {
                     color="primary"
                     onClick={handleVerify}
                     disabled={verificationCode.length !== 6 || isLoading}
+                    sx={{ borderRadius: 2 }}
                   >
                     {isLoading ? (
                       <Box sx={{ display: "flex", alignItems: "center" }}>
@@ -1006,7 +1589,13 @@ const Dashboard = () => {
             ) : (
               // Step 2: Blockchain Enablement
               <>
-                <Alert severity="success" sx={{ mb: 3 }}>
+                <Alert 
+                  severity="success" 
+                  sx={{ 
+                    mb: 3,
+                    borderRadius: 2,
+                  }}
+                >
                   Verification successful! Your code has been verified.
                 </Alert>
                 <Typography variant="body1" paragraph>
@@ -1038,6 +1627,7 @@ const Dashboard = () => {
                   <Button
                     onClick={() => setOpen2FADialog(false)}
                     color="secondary"
+                    sx={{ borderRadius: 2 }}
                   >
                     Cancel
                   </Button>
@@ -1046,6 +1636,7 @@ const Dashboard = () => {
                     color="primary"
                     onClick={handleEnableOnBlockchain}
                     disabled={isLoading}
+                    sx={{ borderRadius: 2 }}
                   >
                     {isLoading ? (
                       <Box sx={{ display: "flex", alignItems: "center" }}>
