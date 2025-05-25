@@ -26,11 +26,14 @@ const Login = () => {
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
-          <div className="flex items-center gap-2 font-medium text-gray-900">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-600 text-white">
-              <Shield className="size-4" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Shield className="w-6 h-6 text-white" />
             </div>
-            ZKP Health
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">DIGIMED</h3>
+              <p className="text-sm text-gray-600">Secure • Private • Verified</p>
+            </div>
           </div>
         </div>
         <div className="flex flex-1 items-center justify-center">
@@ -56,65 +59,64 @@ const Login = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent"></div>
         
         {/* Content */}
-        <div className="relative h-full flex flex-col justify-between p-8 text-white">
-          {/* Top section with logo/branding */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold">ZKP Health</h3>
-              <p className="text-sm text-white/80">Secure • Private • Verified</p>
-            </div>
-          </div>
-
-          {/* Main content */}
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <h2 className="text-4xl font-bold leading-tight">
+        <div className="relative h-full flex flex-col justify-center p-8 text-white">
+          {/* Main content - centered */}
+          <div className="space-y-12 max-w-lg">
+            {/* Hero Section */}
+            <div className="space-y-6">
+              <h1 className="text-5xl font-bold leading-tight">
                 Secure Healthcare
                 <br />
-                <span className="text-blue-300">Data Management</span>
-              </h2>
-              <p className="text-xl text-white/90 max-w-md">
-                Experience the future of healthcare with Zero-Knowledge Proof technology
+                <span className="bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
+                  Data Management
+                </span>
+              </h1>
+              <p className="text-xl text-white/90 leading-relaxed">
+                Experience the future of healthcare with Zero-Knowledge Proof technology ensuring complete privacy and security.
               </p>
             </div>
 
-            {/* Feature highlights */}
-            <div className="space-y-4">
-              <div className="flex items-start gap-4 p-4 bg-white/10 rounded-lg backdrop-blur-sm">
-                <div className="w-3 h-3 bg-green-400 rounded-full mt-1.5 flex-shrink-0"></div>
+            {/* Feature Grid */}
+            <div className="grid gap-6">
+              <div className="group flex items-start gap-4 p-6 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20 hover:bg-white/15 transition-all duration-300">
+                <div className="w-3 h-3 bg-emerald-400 rounded-full mt-2 flex-shrink-0 group-hover:scale-125 transition-transform duration-300"></div>
                 <div>
-                  <h4 className="font-semibold text-white">End-to-End Encryption</h4>
-                  <p className="text-white/80 text-sm">Your medical data remains private and secure</p>
+                  <h3 className="font-semibold text-white text-lg mb-2">End-to-End Encryption</h3>
+                  <p className="text-white/80 text-sm leading-relaxed">Your medical data remains completely private and secure with military-grade encryption</p>
                 </div>
               </div>
               
-              <div className="flex items-start gap-4 p-4 bg-white/10 rounded-lg backdrop-blur-sm">
-                <div className="w-3 h-3 bg-blue-400 rounded-full mt-1.5 flex-shrink-0"></div>
+              <div className="group flex items-start gap-4 p-6 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20 hover:bg-white/15 transition-all duration-300">
+                <div className="w-3 h-3 bg-blue-400 rounded-full mt-2 flex-shrink-0 group-hover:scale-125 transition-transform duration-300"></div>
                 <div>
-                  <h4 className="font-semibold text-white">Blockchain Verified</h4>
-                  <p className="text-white/80 text-sm">Immutable records on the blockchain</p>
+                  <h3 className="font-semibold text-white text-lg mb-2">Blockchain Verified</h3>
+                  <p className="text-white/80 text-sm leading-relaxed">Immutable records stored on the blockchain ensuring data integrity and trust</p>
                 </div>
               </div>
               
-              <div className="flex items-start gap-4 p-4 bg-white/10 rounded-lg backdrop-blur-sm">
-                <div className="w-3 h-3 bg-purple-400 rounded-full mt-1.5 flex-shrink-0"></div>
+              <div className="group flex items-start gap-4 p-6 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20 hover:bg-white/15 transition-all duration-300">
+                <div className="w-3 h-3 bg-purple-400 rounded-full mt-2 flex-shrink-0 group-hover:scale-125 transition-transform duration-300"></div>
                 <div>
-                  <h4 className="font-semibold text-white">Zero-Knowledge Proofs</h4>
-                  <p className="text-white/80 text-sm">Prove eligibility without revealing data</p>
+                  <h3 className="font-semibold text-white text-lg mb-2">Zero-Knowledge Proofs</h3>
+                  <p className="text-white/80 text-sm leading-relaxed">Prove eligibility and authenticity without revealing sensitive personal data</p>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Bottom quote/testimonial */}
-          <div className="p-4 bg-white/10 rounded-lg backdrop-blur-sm border border-white/20">
-            <p className="text-white/90 italic text-sm">
-              "Revolutionizing healthcare data management with cutting-edge cryptographic technology."
-            </p>
-            <p className="text-white/70 text-xs mt-2">— Healthcare Innovation Team</p>
+            {/* Testimonial */}
+            <div className="p-6 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-white/95 italic text-base leading-relaxed">
+                    "Revolutionizing healthcare data management with cutting-edge cryptographic technology that puts privacy first."
+                  </p>
+                  <p className="text-white/70 text-sm mt-3 font-medium">— Healthcare Innovation Team</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
